@@ -161,12 +161,12 @@ const handleSaveInvoiceWithChannels = async () => {
   const operatorIdNum = parseInt(newInvoice.operatorId, 10);
 
   // validación temprana
-if (!number || !date || !supplierId || !operatorId || !slaughterDate) {
-  return alert('Completa todos los campos de la factura.');
-}
-if (typeof operatorId !== 'number' || isNaN(operatorId)) {
-  return alert('Selecciona un Operario válido.');
-}
+  if (!number || !date || !supplierId || !operatorId || !slaughterDate) {
+    return alert('Completa todos los campos de la factura.');
+  }
+  if (isNaN(operatorIdNum)) {
+    return alert('Selecciona un Operario válido.');
+  }
   // 4) Armamos el payload según los nombres que espera el back
   const payload = {
     number:       newInvoice.number,           // se mapea a numero_guia en el back
