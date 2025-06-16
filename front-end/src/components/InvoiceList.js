@@ -380,8 +380,11 @@ const handlePageChange = (page) => {
               className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
             >
               <option value="">Selecciona un Proveedor</option>
-              {suppliers.map(supplier => (
-                <option key={supplier.id_proveedor} value={supplier.id_proveedor}>
+              {suppliers.map((supplier, idx) => (
+                <option
+                  key={`${supplier.id_proveedor}-${idx}`}
+                  value={supplier.id_proveedor}
+                >
                   {supplier.nombre}
                 </option>
               ))}
@@ -397,8 +400,8 @@ const handlePageChange = (page) => {
               className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
             >
                <option value="">Selecciona un Operario</option>
-               {operarioUsers.map(user => (
-                 <option key={user.id} value={(user.id)}>
+               {operarioUsers.map((user, idx) => (
+                 <option key={`${user.id}-${idx}`} value={user.id}>
                    {user.nombre}
                  </option>
                ))}
@@ -598,8 +601,11 @@ const handlePageChange = (page) => {
                       className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
                     >
                       <option value="">Selecciona un Proveedor</option>
-                      {suppliers.map(s => (
-                        <option key={s.id_proveedor} value={String(s.id_proveedor)}>
+                      {suppliers.map((s, idx) => (
+                        <option
+                          key={`${s.id_proveedor}-${idx}`}
+                          value={String(s.id_proveedor)}
+                        >
                           {s.nombre}
                         </option>
                       ))}
@@ -615,8 +621,8 @@ const handlePageChange = (page) => {
                       className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
                     >
                        <option value="">Selecciona un Operario</option>
-                       {operarioUsers.map(user => (
-                         <option key={user.id} value={user.id}>
+                       {operarioUsers.map((user, idx) => (
+                         <option key={`${user.id}-${idx}`} value={user.id}>
                            {user.nombre}
                          </option>
                        ))}
