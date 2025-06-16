@@ -145,89 +145,115 @@ const handleEditedInputChange = ({ target: { name, value } }) => {
   /* ------------------- guardar factura + canales ------------------------- */
 const handleSaveInvoiceWithChannels = async () => {
   const { number, date, supplierId, operatorId, slaughterDate } = newInvoice;
-
-  // 1) Sin canales no continuar
+  // 1) Si no hay canales, no dejamos continuar
   if (tempChannels.length === 0) {
     return alert('Agrega al menos un canal.');
   }
 
-  // 2) Campos obligatorios
-  if (!number || !date || !supplierId || !operatorId || !slaughterDate) {
-    return alert('Completa todos los campos de la factura.');
+  // 2) Validamos que el usuario haya seleccionado un Proveedor y un Operario
+  if (!newInvoice.supplierId) {
+    return alert('Debes seleccionar un Proveedor antes de guardar la factura.');
   }
-
-  // 3) Parseo IDs
-  const supplierIdNum = parseInt(supplierId, 10);
-  const operatorIdNum = parseInt(operatorId, 10);
-
-  if (isNaN(operatorIdNum)) {
-    return alert('Selecciona un Operario válido.');
+  if (!newInvoice.operatorId) {
+    return alert('Debes seleccionar un Operario antes de guardar la factura.');
   }
+  const supplierIdNum = parseInt(newInvoice.supplierId, 10);
+  const operatorIdNum = parseInt(newInvoice.operatorId, 10);
 
-  // 4) Payload
+  // validación temprana
+if (!number || !date || !supplierId || !operatorId || !slaughterDate) {
+  return alert('Completa todos los campos de la factura.');
+}
+if (typeof operatorId !== 'number' || isNaN(operatorId)) {
+  return alert('Selecciona un Operario válido.');
+}
+  // 4) Armamos el payload según los nombres que espera el back
   const payload = {
-    number,
-    date,
+    number:       newInvoice.number,           // se mapea a numero_guia en el back
+    date:         newInvoice.date,             // se mapea a fecha
     supplierId:   supplierIdNum,
     operatorId:   operatorIdNum,
-    slaughterDate,
+    slaughterDate:newInvoice.slaughterDate,    // (si existe esa columna)
     channels: tempChannels.map(({ code, weight, type, origin }) => ({
-      code, weight, type, origin
+      code,
+      weight,
+      type,
+      origin
     }))
   };
 
   try {
+    // 5) Hacemos el POST para crear factura + canales
+    console.log('🏷️ POST /facturas payload:', payload);
     await api.post('/facturas', payload);
-    // recarga
-    const resp = await api.get('/facturas');
-    setInvoices(resp.data.map(inv => ({
-      ...inv,
-      date:          inv.date?.split('T')[0]          || '',
-      slaughterDate: inv.slaughterDate?.split('T')[0] || ''
-    })));
-    // reset
-    setNewInvoice({ number:'', date:'', supplierId:'', operatorId:'', slaughterDate:'' });
+
+    // 6) Una vez creado, recargamos TODAS las facturas
+    const respFacturas = await api.get('/facturas');
+    setInvoices(
+  (respFacturas.data || []).map(inv => ({
+    ...inv,
+    date:          inv.date?.split('T')[0]          || '',
+    slaughterDate: inv.slaughterDate?.split('T')[0] || ''
+  }))
+);
+
+    // 7) Reseteamos el formulario
+    setNewInvoice({
+      number: '',
+      date: '',
+      supplierId: '',
+      operatorId: '',
+      slaughterDate: ''
+    });
     setTempChannels([]);
     setShowChannelsForm(false);
+
     alert('Factura guardada con éxito');
   } catch (err) {
-    console.error(err);
-    const msg = err.response?.data ? JSON.stringify(err.response.data) : 'Error al guardar factura';
-    alert(msg);
+    console.error('Error completo de Axios:', err);
+    if (err.response?.data) {
+      console.error('Respuesta del servidor (err.response.data):', err.response.data);
+      alert('Error: ' + JSON.stringify(err.response.data));
+    } else {
+      alert('Error al guardar factura');
+    }
   }
 };
 
 
-/* -------------- editar factura (PUT) ----------------------------------- */
-const handleSaveEditedInvoice = async () => {
-  const { number, date, supplierId, operatorId, slaughterDate, channels = [] } = editedInvoice;
-
-  // 1) Campos obligatorios
-  if (!number || !date || !supplierId || !operatorId || !slaughterDate) {
-    return alert('Completa todos los campos.');
-  }
-
-  // 2) Parseo IDs
-  const supplierIdNum = parseInt(supplierId, 10);
-  const operatorIdNum = parseInt(operatorId, 10);
-
-  if (isNaN(operatorIdNum)) {
-    return alert('Selecciona un Operario válido.');
-  }
-
-  // 3) Payload
+  /* -------------- editar factura (PUT) ----------------------------------- */
+  const handleEditInvoice = inv => {
+    setEditingInvoiceId(inv.id);
+    setEditedInvoice({ ...inv });
+  };
+  const handleSaveEditedInvoice = async () => {
+    const { number, date, supplierId, operatorId, slaughterDate, channels = [] } = editedInvoice;
+  
+    if(!number||!date||!supplierId||!operatorId||!slaughterDate){
+      return alert('Completa todos los campos.');
+    }
+   const supplierIdNum = parseInt(supplierId, 10);
+   const operatorIdNum = parseInt(operatorId, 10);
+  // Armamos el payload según el back
   const payload = {
     number,
     date,
-    supplierId:   supplierIdNum,
-    operatorId:   operatorIdNum,
+    supplierId: supplierIdNum,
+    operatorId: operatorIdNum,
     slaughterDate,
-    channels
+    channels  // si editas canales aquí, incluye este array
   };
-
-  try {
-    const { data: upd } = await api.put(`/facturas/${editingInvoiceId}`, payload);
-    setInvoices(prev => prev.map(i => i.id === editingInvoiceId ? upd : i));
+    try {
+    console.log('PUT /facturas payload:', payload);
+    const { data: upd } = await api.put(
+      `/facturas/${editingInvoiceId}`,
+      payload
+    );
+    setInvoices(prev =>
+      prev.map(i =>
+        i.id === editingInvoiceId ? upd : i
+      )
+    );
     setEditingInvoiceId(null);
     alert('Factura actualizada con éxito 🎉');
   } catch (err) {
@@ -235,7 +261,6 @@ const handleSaveEditedInvoice = async () => {
     alert('Error actualizando factura');
   }
 };
-
 
   /* -------------- canales: editar / eliminar ----------------------------- */
   const startEditingChannel = (invoiceId, channel) =>
@@ -380,8 +405,11 @@ const handlePageChange = (page) => {
               className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
             >
               <option value="">Selecciona un Proveedor</option>
-              {suppliers.map(supplier => (
-                <option key={supplier.id_proveedor} value={supplier.id_proveedor}>
+               {suppliers.map((supplier, idx) => (
+                <option
+                  key={`${supplier.id_proveedor}-${idx}`}
+                  value={supplier.id_proveedor}
+                >
                   {supplier.nombre}
                 </option>
               ))}
@@ -397,8 +425,8 @@ const handlePageChange = (page) => {
               className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
             >
                <option value="">Selecciona un Operario</option>
-               {operarioUsers.map(user => (
-                 <option key={user.id} value={(user.id)}>
+               {operarioUsers.map((user, idx) => (
+                 <option key={`${user.id}-${idx}`} value={user.id}>
                    {user.nombre}
                  </option>
                ))}
@@ -598,8 +626,11 @@ const handlePageChange = (page) => {
                       className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
                     >
                       <option value="">Selecciona un Proveedor</option>
-                      {suppliers.map(s => (
-                        <option key={s.id_proveedor} value={String(s.id_proveedor)}>
+                      {suppliers.map((supplier, idx) => (
+                <option
+                  key={`${supplier.id_proveedor}-${idx}`}
+                  value={supplier.id_proveedor}
+                >
                           {s.nombre}
                         </option>
                       ))}
@@ -615,8 +646,8 @@ const handlePageChange = (page) => {
                       className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
                     >
                        <option value="">Selecciona un Operario</option>
-                       {operarioUsers.map(user => (
-                         <option key={user.id} value={user.id}>
+                       {operarioUsers.map((user, idx) => (
+                 <option key={`${user.id}-${idx}`} value={user.id}>
                            {user.nombre}
                          </option>
                        ))}

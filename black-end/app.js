@@ -57,7 +57,7 @@ app.use(
 app.use(
   '/api/pos', 
   verifyToken, 
-  authorizeRoles('admin'), 
+  authorizeRoles('admin','operario'), 
   posRouter
 );
 app.use(
