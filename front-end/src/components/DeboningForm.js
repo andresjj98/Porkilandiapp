@@ -30,7 +30,7 @@ const DeboningForm = () => {
     user => typeof user.role === 'string' && user.role.toLowerCase() === 'operario'
   );
 
-  const loadData = async () => {
+const loadData = async () => {
     try {
       const [factRes, desRes, detRes, tipoRes, userRes] = await Promise.all([
         api.get('/facturas'),
@@ -61,7 +61,8 @@ const DeboningForm = () => {
       });
 
       const desposteMap = {};
-      (desRes.data || []).forEach(d => {
+      const desposteList = desRes.data || [];
+      desposteList.forEach(d => {
         desposteMap[d.id_desposte] = d;
       });
 
@@ -87,6 +88,7 @@ const DeboningForm = () => {
       }));
 
       setCuts(mappedCuts);
+      setDespostes(desposteList);
       setUsers(userList);
       setCutTypes(cutTypesByMeat);
       setCutTypeNameToId(cutNameToId);
@@ -347,7 +349,7 @@ const DeboningForm = () => {
           <select
             id="invoice"
             value={selectedInvoiceId}
-            onChange={(e) => setSelectedInvoiceId(e.target.value)}
+            onChange={(e) => setSelectedInvoiceId(Number(e.target.value))}
             className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
           >
             <option value="">Selecciona una Factura</option>
@@ -368,7 +370,7 @@ const DeboningForm = () => {
             id="operatorId"
             name="operatorId"
             value={selectedOperatorId}
-            onChange={(e) => setSelectedOperatorId(e.target.value)}
+            onChange={(e) => setSelectedOperatorId(Number(e.target.value))}
             className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
           >
             <option value="">Selecciona un Operario</option>
