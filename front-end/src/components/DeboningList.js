@@ -1,12 +1,74 @@
 import React, { useState, useEffect } from 'react';
-import { getStorage } from '../utils/storage';
-import { initialInvoices } from '../mock/invoices';
+import api from '../services/api';
+
 
 const DeboningList = () => {
-  const [cuts, setCuts] = useState(() => getStorage('cuts') || []);
-  const [invoices, setInvoices] = useState(() => getStorage('invoices') || initialInvoices);
+  const [cuts, setCuts] = useState([]);
+  const [invoices, setInvoices] = useState([]);
   const [groupedCuts, setGroupedCuts] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [factRes, desRes, detRes, tiposRes, userRes] = await Promise.all([
+          api.get('/facturas'),
+          api.get('/despostes'),
+          api.get('/detalles_corte'),
+          api.get('/tipos_corte'),
+          api.get('/usuarios')
+        ]);
+
+        const facturaMap = {};
+        (factRes.data || []).forEach(f => {
+          facturaMap[f.id] = f;
+        });
+
+        const userMap = {};
+        (userRes.data || []).forEach(u => {
+          userMap[u.id] = u.nombre;
+        });
+
+        const canalMap = {};
+        (factRes.data || []).forEach(f => {
+          (f.channels || []).forEach(c => {
+            canalMap[c.id] = { code: c.code, type: c.type, invoiceId: f.id };
+          });
+        });
+
+        const cutTypeMap = {};
+        (tiposRes.data || []).forEach(t => {
+          cutTypeMap[t.id_tipo_corte] = t.nombre_corte;
+        });
+
+        const desposteMap = {};
+        (desRes.data || []).forEach(d => {
+          desposteMap[d.id_desposte] = d;
+        });
+
+        const mappedCuts = (detRes.data || []).map(det => {
+          const des = desposteMap[det.id_desposte] || {};
+          const canal = canalMap[det.id_canal] || {};
+          return {
+            id: det.id_detalle,
+            invoiceId: canal.invoiceId || des.id_factura,
+            operator: userMap[des.id_usuario] || '',
+            carcassCode: canal.code || String(det.id_canal),
+            cutType: cutTypeMap[det.id_tipo_corte] || String(det.id_tipo_corte),
+            weight: parseFloat(det.peso),
+            quantity: det.cantidad,
+            processingDate: des.fecha
+          };
+        });
+
+        setCuts(mappedCuts);
+        setInvoices(factRes.data || []);
+      } catch (err) {
+        console.error('Error loading deboning list data:', err);
+      }
+    };
+    loadData();
+  }, []);
 
   useEffect(() => {
     const grouped = cuts.reduce((acc, cut) => {

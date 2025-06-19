@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-//import { getStorage, setStorage } from '../utils/storage';
-//import { initialInvoices } from '../mock/invoices';
-//import { initialCutTypes } from '../mock/cutTypes';
+import { getStorage, setStorage } from '../utils/storage';
+import { initialInvoices } from '../mock/invoices';
+import { initialCutTypes } from '../mock/cutTypes';
 import { filterByDateRange } from '../utils/dateFilters';
-//import { initialUsers } from '../mock/users';
-import api from '../services/api';
+import { initialUsers } from '../mock/users';
 
 
 const DeboningForm = () => {
@@ -17,7 +16,7 @@ const DeboningForm = () => {
   const [selectedCarcassCode, setSelectedCarcassCode] = useState('');
   const [currentCutsForCarcass, setCurrentCutsForCarcass] = useState([]);
   const [newCut, setNewCut] = useState({ cutType: '', weight: '', quantity: '' });
-  const [productos, setProductos] = useState([]); // Inicializar lista de productos desde el back
+  const [cutTypes, setCutTypes] = useState({}); // Inicializar vacío
 
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -27,109 +26,50 @@ const DeboningForm = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
- const operarioUsers = users.filter(
-    user =>
-      typeof user.role === 'string' &&
-      user.role.toLowerCase() === 'operario'
-  );
-
-  const [cutTypes, setCutTypes] = useState([]);
-  const [registeredDeboning, setRegisteredDeboning] = useState([]);
-
-  const loadRegisteredDeboning = async () => {
-  try {
-    const { data } = await api.get('/despostes');
-    setRegisteredDeboning(data);
-  } catch (e) {
-    console.error('Error cargando despostes:', e);
-  }
-};
+  const operarioUsers = users.filter(user => user.role === 'Operario');
 
 
   // Cargar datos al montar el componente
-  // AHORA: carga facturas, despostes, usuarios y productos desde tu API
   useEffect(() => {
     const loadData = async () => {
       try {
-        // 1) Todas las facturas
-        const { data: facturas } = await api.get('/facturas');
-        // 2) Despostes ya hechos (para excluirlos)
-        const { data: despostes } = await api.get('/despostes');
-        const hechosIds = despostes.map(d => d.id_factura);
-        // filtramos facturas que aún no tienen desposte
-        setInvoices(facturas.filter(f => !hechosIds.includes(f.id_factura)));
-
-        // 3) Todos los usuarios → solo operarios
-     const { data: allUsers } = await api.get('/usuarios');
-     setUsers(allUsers);
-        // 4) Lista de productos (tipos de carne)
-        const { data: prods } = await api.get('/productos');
-        setProductos(prods || []);
-      } catch (err) {
-        console.error('Error cargando datos de desposte:', err);
+        const loadedInvoices = await getStorage('invoices');
+        setInvoices(loadedInvoices || []);
+        const loadedCuts = await getStorage('cuts');
+        setCuts(loadedCuts || []);
+        const loadedUsers = await getStorage('users');
+        setUsers(loadedUsers || []);
+        const loadedCutTypes = await getStorage('cutTypes');
+        setCutTypes(loadedCutTypes || {});
+      } catch (error) {
+        console.error("Error loading initial data for DeboningForm:", error);
       }
-      
-      // 5) Traer todos los despostes (con sus detalles de corte si tu back ya los manda)
-      await loadRegisteredDeboning();
     };
     loadData();
   }, []);
 
 
-useEffect(() => {
-  // si no hay factura seleccionada, limpiamos
-  if (!selectedInvoiceId) {
-    setAvailableCarcasses([]);
-    setSelectedCarcassCode('');
-    setCurrentCutsForCarcass([]);
-    return;
-  }
+  useEffect(() => {
+    if (selectedInvoiceId) {
+      const invoice = invoices.find(inv => inv.id === selectedInvoiceId);
+      if (invoice) {
+        const despostedCarcassCodes = cuts
+          .filter(cut => cut.invoiceId === selectedInvoiceId)
+          .map(cut => cut.carcassCode);
 
-  // función asíncrona para cargar los canales de la factura
-  const loadCanales = async () => {
-    try {
-      // GET /api/canales?factura=ID
-      const { data } = await api.get(`/canales?factura=${selectedInvoiceId}`);
-      setAvailableCarcasses(data || []);
-      setSelectedCarcassCode('');
-      setCurrentCutsForCarcass([]);
-    } catch (err) {
-      console.error('Error cargando canales de la factura:', err);
+        const available = invoice.channels.filter(channel =>
+          !despostedCarcassCodes.includes(channel.code)
+        );
+        setAvailableCarcasses(available);
+        setSelectedCarcassCode('');
+        setCurrentCutsForCarcass([]);
+      }
+    } else {
       setAvailableCarcasses([]);
       setSelectedCarcassCode('');
-      setCurrentCutsForCarcass([]);
+        setCurrentCutsForCarcass([]);
     }
-  };
-
-  loadCanales();
-}, [selectedInvoiceId]);
-
-
-useEffect(() => {
-  // 1) Si no hay canal seleccionado, limpiamos solo cutTypes
-  if (!selectedCarcassCode) {
-    setCutTypes([]);
-    return;
-  }
-
-    // 2) Obtenemos el id numérico del canal
-    const canalId = parseInt(selectedCarcassCode, 10);
-    // 3) Buscamos el canal en availableCarcasses para extraer id_producto
-    const canal = availableCarcasses.find(c => c.id_canal === canalId);
-    if (!canal) {
-      setCutTypes([]);
-      return;
-    }
-
-  // 3) Llamamos al endpoint que filtra por id_producto
-  api
-    .get(`/tipos_corte?producto=${canal.id_producto}`)
-    .then(({ data }) => setCutTypes(data))
-    .catch(err => {
-      console.error('Error cargando tipos de corte:', err);
-      setCutTypes([]);
-    });
-}, [selectedCarcassCode, availableCarcasses]);
+  }, [selectedInvoiceId, invoices, cuts]);
 
   useEffect(() => {
     setCurrentCutsForCarcass([]);
@@ -164,59 +104,62 @@ useEffect(() => {
   };
 
   const handleAddTemporaryCut = () => {
-  if (!newCut.cutType || !newCut.weight || !newCut.quantity) {
-    alert('Por favor, completa todos los campos del corte.');
-    return;
-  }
-  const id = `temp-cut-${Date.now()}`;
-  const cutToAdd = {
-    id,
-    cutType: newCut.cutType,
-    weight: parseFloat(newCut.weight),
-    quantity: parseInt(newCut.quantity, 10),
+    if (!newCut.cutType || !newCut.weight || !newCut.quantity) {
+      alert('Por favor, completa todos los campos del corte.');
+      return;
+    }
+
+    const id = `temp-cut-${Date.now()}`;
+    const cutToAdd = {
+      id,
+      cutType: newCut.cutType,
+      weight: parseFloat(newCut.weight),
+      quantity: parseInt(newCut.quantity, 10),
+    };
+
+    setCurrentCutsForCarcass([...currentCutsForCarcass, cutToAdd]);
+    setNewCut({ cutType: '', weight: '', quantity: '' });
   };
-  setCurrentCutsForCarcass([...currentCutsForCarcass, cutToAdd]);
-  setNewCut({ cutType: '', weight: '', quantity: '' });
-};
 
-const handleRegisterAllCuts = async () => {
-  if (currentCutsForCarcass.length === 0) {
-    return alert('No hay cortes para registrar.');
-  }
-  if (!selectedInvoiceId || !selectedOperatorId || !selectedCarcassCode) {
-    return alert('Por favor, selecciona factura, operario y canal.');
-  }
+  const handleDeleteTemporaryCut = (id) => {
+    setCurrentCutsForCarcass(currentCutsForCarcass.filter(cut => cut.id !== id));
+  };
 
-  // Armo el array de detalles con los nombres que valida el backend:
-  const cutsPayload = currentCutsForCarcass.map(cut => ({
-    canalId:      Number(selectedCarcassCode),
-    cutTypeId:    Number(cut.cutType),    // Debe ser el id_tipo_corte
-    weight:       cut.weight,
-    quantity:     cut.quantity
-  }));
+  const handleRegisterAllCuts = async () => {
+    if (currentCutsForCarcass.length === 0) {
+      alert('No hay cortes para registrar.');
+      return;
+    }
+    if (!selectedInvoiceId || !selectedOperatorId || !selectedCarcassCode) {
+       alert('Por favor, selecciona la factura, el operario y el canal.');
+       return;
+    }
 
-  try {
-    // Un solo POST con todo
-    const { data: res } = await api.post('/despostes', {
-      id_factura: Number(selectedInvoiceId),
-      id_usuario: Number(selectedOperatorId),
-      cuts:       cutsPayload
-    });
-    await loadRegisteredDeboning();
-    // Limpio estado y muestro éxito
-    setCurrentCutsForCarcass([]);
-    setSelectedCarcassCode('');
-    setNewCut({ cutType:'', weight:'', quantity:'' });
-    alert('Desposte y cortes registrados con éxito!');
+    const processingDate = new Date().toISOString().split('T')[0];
+    const cutsToSave = currentCutsForCarcass.map(cut => ({
+      invoiceId: selectedInvoiceId,
+      operatorId: selectedOperatorId,
+      carcassCode: selectedCarcassCode,
+      cutType: cut.cutType,
+      weight: cut.weight,
+      quantity: cut.quantity,
+      processingDate,
+    }));
 
-  } catch (err) {
-    console.error('Error registrando desposte y cortes:', err);
-    const msg = err.response?.data?.errors
-      ? err.response.data.errors.map(e=>e.msg).join('\n')
-      : 'Hubo un error al guardar en la BD.';
-    alert(msg);
-  }
-};
+    try {
+      const newCuts = [...cuts, ...cutsToSave.map(c => ({ id: `cut-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, ...c }))];
+      await setStorage('cuts', newCuts);
+      setCuts(newCuts);
+      setCurrentCutsForCarcass([]);
+      setSelectedCarcassCode('');
+      setNewCut({ cutType: '', weight: '', quantity: '' });
+      alert('Cortes registrados con éxito!');
+    } catch (error) {
+      console.error("Error registering cuts:", error);
+      alert('Error al registrar los cortes. Intenta de nuevo.');
+    }
+  };
+
 
   const getTotalWeightSummary = (cutsList) => {
     const totalWeight = cutsList.reduce((sum, cut) => sum + parseFloat(cut.weight), 0);
@@ -229,8 +172,8 @@ const handleRegisterAllCuts = async () => {
   };
 
   const getOperatorName = (operatorId) => {
-    const op = users.find(u => u.id_usuario === operatorId);
-    return op ? op.nombre : 'Desconocido';
+    const operator = users.find(user => user.id === operatorId);
+    return operator ? operator.fullName : 'Desconocido';
   };
 
 
@@ -298,8 +241,7 @@ const handleRegisterAllCuts = async () => {
     return 'Desconocido';
   };
 
-  // Ahora, todos los productos (ej: “Res”, “Cerdo”, “Pollo”, etc.) aparecerán:
-  const availableCutTypes = selectedCarcassCode ? productos.map(p => p.nombre) : [];
+  const availableCutTypes = selectedCarcassCode ? cutTypes[getCarcassType(selectedCarcassCode)] || [] : [];
 
   const invoicesWithoutDeboning = invoices.filter(invoice => {
     const hasDeboning = cuts.some(cut => cut.invoiceId === invoice.id);
@@ -367,15 +309,15 @@ const handleRegisterAllCuts = async () => {
             id="operatorId"
             name="operatorId"
             value={selectedOperatorId}
-            onChange={(e) => setSelectedOperatorId(parseInt(e.target.value, 10))}
+            onChange={(e) => setSelectedOperatorId(e.target.value)}
             className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
           >
             <option value="">Selecciona un Operario</option>
-            {operarioUsers.map(u => (
-            <option key={u.id} value={u.id}>
-              {u.nombre}
-            </option>
-          ))}
+            {operarioUsers.map(user => (
+              <option key={user.id} value={user.id}>
+                {user.fullName}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -389,12 +331,10 @@ const handleRegisterAllCuts = async () => {
             disabled={!selectedInvoiceId || availableCarcasses.length === 0}
           >
             <option value="">Selecciona un Canal</option>
-            {availableCarcasses.map(c => (
-  <option key={c.id_canal} value={c.id_canal}>
-    {`Código: ${c.codigo_canal} (` +
-      `${productos.find(p => p.id_producto === c.id_producto)?.nombre || 'Desconocido'}, ` +
-      `${c.peso} kg)` }
-  </option>
+            {availableCarcasses.map(carcass => (
+              <option key={carcass.code} value={carcass.code}>
+                {`Código: ${carcass.code} (${carcass.type}, ${carcass.weight}kg)`}
+              </option>
             ))}
           </select>
            {selectedInvoiceId && availableCarcasses.length === 0 && (
@@ -416,11 +356,9 @@ const handleRegisterAllCuts = async () => {
                 className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
               >
                 <option value="">Selecciona un Tipo de Corte</option>
-                {cutTypes.map(tc => (
-    <option key={tc.id_tipo_corte} value={tc.id_tipo_corte}>
-      {tc.nombre_corte}
-    </option>
-             ))}
+                {availableCutTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
               </select>
             </div>
 
@@ -542,59 +480,52 @@ const handleRegisterAllCuts = async () => {
         </div>
 
 
-{registeredDeboning.length > 0 ? (
-  <div className="space-y-6">
-    {registeredDeboning
-      .filter(d => {
-  const invoice = invoices.find(inv => inv.id === d.id_factura);
-  // con el segundo `?` protegemos tambien el número:
-  const num = invoice?.number?.toLowerCase() || '';
-  return (
-    num.includes(searchTerm.toLowerCase()) &&
-    (!startDate || d.fecha >= startDate) &&
-    (!endDate   || d.fecha <= endDate)
-  );
-})
-      .map(d => {
-        const invoice = invoices.find(inv => inv.id === d.id_factura);
-        return (
-          <div key={d.id_desposte} className="bg-white p-6 rounded-lg shadow-md">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-xl font-semibold text-gray-800">
-                Factura:  {invoice?.number || '—'}
-              </h3>
-              <p className="text-gray-600 text-sm">{d.fecha}</p>
-            </div>
-            <p className="text-gray-700 mb-2">
-              Operario: {getOperatorName(d.id_usuario)}
-            </p>
-            <h4 className="font-medium text-gray-800 mb-1">Cortes:</h4>
-           {(d.detalles || []).length > 0 ? (
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    {d.detalles.map(det => (
-      <div key={det.id_detalle} className="border border-gray-200 rounded-lg p-4 bg-white">
-        <p className="text-gray-700"><span className="font-medium">Corte:</span> {det.nombre_corte}</p>
-        <p className="text-gray-700"><span className="font-medium">Canal Código:</span> {det.codigo_canal || det.id_canal}</p>
-        <p className="text-gray-700"><span className="font-medium">Peso:</span> {det.peso} kg</p>
-        <p className="text-gray-700"><span className="font-medium">Cantidad:</span> {det.cantidad} piezas</p>
-        <p className="text-gray-600 text-sm"><span className="font-medium">Operario:</span> {getOperatorName(d.id_usuario)}</p>
-        <p className="text-gray-600 text-sm"><span className="font-medium">Fecha:</span> {d.fecha.split('T')[0]}</p>
-      </div>
-    ))}
-  </div>
-) : (
-  <p className="text-gray-500">No hay cortes registrados</p>
-)}
+        {paginatedGroupedCuts.length > 0 ? (
+          <div className="space-y-8">
+            {paginatedGroupedCuts.map(([invoiceNumber, cutsList]) => {
+              const invoice = invoices.find(inv => inv.number === invoiceNumber);
+              const invoiceId = invoice ? invoice.id : null;
+
+              return (
+                <div key={invoiceNumber} className="bg-white p-6 rounded-lg shadow-md">
+                  <h3 className="text-xl font-semibold text-gray-800 mb-4">Factura: {invoiceNumber}</h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {cutsList.map(cut => (
+                      <div key={cut.id} className="border border-gray-200 rounded-lg p-3">
+                        <p className="text-gray-700 font-medium">Corte: <span className="font-normal">{cut.cutType}</span></p>
+                        <p className="text-gray-700 font-medium">Canal Código: <span className="font-normal">{cut.carcassCode}</span></p>
+                        <p className="text-gray-700 font-medium">Peso: <span className="font-normal">{cut.weight} kg</span></p>
+                        <p className="text-gray-700 font-medium">Cantidad: <span className="font-normal">{cut.quantity} piezas</span></p>
+                        <p className="text-gray-600 text-sm">Operario: {getOperatorName(cut.operatorId)}</p>
+                        <p className="text-gray-600 text-sm">Fecha: {cut.processingDate}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 p-4 bg-gray-100 rounded-lg">
+                    <h5 className="text-md font-semibold text-gray-800 mb-2">Resumen de Peso por Tipo de Corte en esta Factura</h5>
+                    {getCutsSummary(cutsList).map(([type, totalWeight]) => (
+                      <p key={type} className="text-gray-700">{type}: {totalWeight.toFixed(2)} kg</p>
+                    ))}
+
+                    <h5 className="text-md font-semibold text-gray-800 mt-4 mb-2">Total Kilos Despostado y Merma por Tipo de Carne</h5>
+                    {getTotalWeightByMeatType(cutsList).map(([meatType, totalWeight]) => (
+                      <p key={meatType} className="text-gray-700">{meatType} (Despostado): {totalWeight.toFixed(2)} kg</p>
+                    ))}
+                     {invoiceId && getMermaByMeatType(invoiceId, cutsList).map(([meatType, mermaWeight]) => (
+                      <p key={`${meatType}-merma`} className="text-gray-700">
+                        {meatType} (Merma): <span className={`${mermaWeight >= 0 ? 'text-green-600' : 'text-red-600'}`}>{mermaWeight.toFixed(2)} kg</span>
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        );
-      })
-    }
-  </div>
-) : (
-  <p className="text-gray-600">
-    No hay despostes registrados que coincidan con la búsqueda o rango de fechas.
-  </p>
-)}
+        ) : (
+          <p className="text-gray-600">No hay despostes registrados que coincidan con la búsqueda o rango de fechas.</p>
+        )}
       </div>
 
        {totalPages > 1 && (
