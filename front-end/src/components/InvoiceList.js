@@ -6,6 +6,7 @@ const InvoiceList = () => {
   const [invoices, setInvoices] = useState([]); // Inicializar vacío, se carga con useEffect
   const [suppliers, setSuppliers] = useState([]); // Inicializar vacío
   const [users, setUsers] = useState([]); // Inicializar vacío
+  const [products, setProducts] = useState([]); // Tipos de carne desde el backend
   const [showAddForm, setShowAddForm] = useState(false);
   const [showChannelsForm, setShowChannelsForm] = useState(false);
   const [currentInvoiceId, setCurrentInvoiceId] = useState(null);
@@ -27,7 +28,7 @@ const InvoiceList = () => {
   const [newChannel, setNewChannel] = useState({
     code: '',
     weight: '',
-    type: 'Res',
+    type: '',
     origin: ''
   });
 
@@ -37,7 +38,7 @@ const InvoiceList = () => {
     data: {
       code: '',
       weight: '',
-      type: 'Res',
+      type: '',
       origin: ''
     }
   });
@@ -59,10 +60,11 @@ const InvoiceList = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [invRes, supRes, userRes] = await Promise.all([
+        const [invRes, supRes, userRes, prodRes] = await Promise.all([
           api.get('/facturas'),
           api.get('/proveedores'),
-          api.get('/usuarios')
+          api.get('/usuarios'),
+          api.get('/productos')
         ]);
 
         const mappedSuppliers = (supRes.data || []).map(s => ({
@@ -80,9 +82,14 @@ const InvoiceList = () => {
           role: u.role
         }));
 
+        const mappedProducts = (prodRes.data || []).map(p => ({
+          id: p.id_producto,
+          name: p.nombre
+        }));
         setInvoices(invRes.data || []);
         setSuppliers(mappedSuppliers);
         setUsers(mappedUsers);
+        setProducts(mappedProducts);
       } catch (error) {
         console.error('Error loading initial data for InvoiceList:', error);
       }
@@ -131,7 +138,7 @@ const InvoiceList = () => {
     };
 
     setTempChannels([...tempChannels, channelToAdd]);
-    setNewChannel({ code: '', weight: '', type: 'Res', origin: '' });
+    setNewChannel({ code: '', weight: '', type: '', origin: '' });
   };
 
   const handleDeleteTemporaryChannel = (id) => {
@@ -295,7 +302,7 @@ const InvoiceList = () => {
     setEditingChannel({
       invoiceId: null,
       channelId: null,
-      data: { code: '', weight: '', type: 'Res', origin: '' }
+      data: { code: '', weight: '', type: '', origin: '' }
     });
   };
 
@@ -447,10 +454,12 @@ const InvoiceList = () => {
               onChange={handleChannelInputChange}
               className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
             >
-              <option value="Res">Res</option>
-              <option value="Cerdo">Cerdo</option>
-              <option value="Pollo">Pollo</option>
-              <option value="Otro">Otro</option>
+             <option value="">Selecciona un Tipo</option>
+              {products.map(prod => (
+                <option key={prod.id} value={prod.name}>
+                  {prod.name}
+                </option>
+              ))}
             </select>
           </div>
           <div className="mt-3">
@@ -709,10 +718,12 @@ const InvoiceList = () => {
                                       }))}
                                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     >
-                                      <option value="Res">Res</option>
-                                      <option value="Cerdo">Cerdo</option>
-                                      <option value="Pollo">Pollo</option>
-                                      <option value="Otro">Otro</option>
+                                      <option value="">Selecciona un Tipo</option>
+                                      {products.map(prod => (
+                                        <option key={prod.id} value={prod.name}>
+                                          {prod.name}
+                                        </option>
+                                      ))}
                                     </select>
                                   </div>
 
