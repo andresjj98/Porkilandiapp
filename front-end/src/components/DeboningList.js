@@ -60,7 +60,7 @@ const DeboningList = () => {
             processingDate: des.fecha
           };
         });
-
+        mappedCuts.sort((a, b) => new Date(b.processingDate) - new Date(a.processingDate));
         setCuts(mappedCuts);
         setInvoices(factRes.data || []);
       } catch (err) {
@@ -68,6 +68,8 @@ const DeboningList = () => {
       }
     };
     loadData();
+    const interval = setInterval(loadData, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -79,6 +81,10 @@ const DeboningList = () => {
       acc[invoiceNumber].push(cut);
       return acc;
     }, {});
+
+    Object.values(grouped).forEach(list => {
+      list.sort((a, b) => new Date(b.processingDate) - new Date(a.processingDate));
+    });
 
     const filteredGrouped = Object.entries(grouped).reduce((acc, [invoiceNumber, cutsList]) => {
       if (invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase())) {
