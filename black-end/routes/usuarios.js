@@ -22,7 +22,7 @@ const router = express.Router();
 router.get(
   '/',
   verifyToken,
-  authorizeRoles('admin', 'operario'),
+  authorizeRoles('admin', 'operario', 'punto_venta'),
   async (req, res) => {
     try {
       const usuarios = await getAllUsuarios();
@@ -40,7 +40,7 @@ router.get(
 router.get(
   '/:id',
   verifyToken,
-  authorizeRoles('admin', 'operario'),
+  authorizeRoles('admin', 'operario', 'punto_venta'),
   param('id').isInt().withMessage('El ID debe ser numérico'),
   validateRequest,
   async (req, res) => {

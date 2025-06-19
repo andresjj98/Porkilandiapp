@@ -51,7 +51,7 @@ app.use('/api/auth', authRouter);
 app.use(
   '/api/usuarios',
   verifyToken,
-  authorizeRoles('admin','operario'),
+  authorizeRoles('admin','operario','punto_venta'),
   usuariosRouter
 );
 app.use(

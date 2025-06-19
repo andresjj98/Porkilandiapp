@@ -149,8 +149,7 @@ const OrderForm = () => {
       }
     };
     loadLatestCuts();
-  }, [cutTypes]);
-
+  }, []);
 
   useEffect(() => {
     if (newItem.meatType) {
