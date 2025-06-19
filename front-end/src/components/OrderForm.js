@@ -124,7 +124,7 @@ const OrderForm = () => {
         setCutTypes(cutTypesMap);
         setInvoices(invoicesList);
         setCuts(Object.values(cutsMap));
-        setOrders(ordersData);        
+        setOrders(ordersData);
         setUsers(usersMapped);
       } catch (error) {
         console.error('Error loading initial data for OrderForm:', error);
@@ -133,7 +133,23 @@ const OrderForm = () => {
     loadData();
   }, []);
 
-
+ useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const { data } = await api.get('/usuarios');
+        const mapped = (data || []).map(u => ({
+          id: u.id,
+          fullName: u.nombre,
+          role: u.role,
+        }));
+        setUsers(mapped);
+      } catch (err) {
+        console.error('Error loading users for operators list:', err);
+      }
+    };
+    loadUsers();
+  }, []);
+  
   useEffect(() => {
    const loadLatestCuts = async () => {
       try {
