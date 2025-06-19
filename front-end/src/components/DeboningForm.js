@@ -304,9 +304,12 @@ const loadData = async () => {
 
   const availableCutTypes = selectedCarcassCode ? cutTypes[getCarcassType(selectedCarcassCode)] || [] : [];
 
-  const invoicesWithoutDeboning = invoices.filter(invoice => {
-    const hasDeboning = despostes.some(d => d.id_factura === invoice.id);
-    return !hasDeboning;
+// Mostrar solo las facturas que tienen al menos un canal pendiente de desposte
+  const invoicesWithPendingChannels = invoices.filter(invoice => {
+    const despostedCodes = cuts
+      .filter(cut => cut.invoiceId === invoice.id)
+      .map(cut => cut.carcassCode);
+    return invoice.channels.some(ch => !despostedCodes.includes(ch.code));
   });
 
   const groupedCutsArray = Object.entries(groupedCuts);
@@ -353,13 +356,13 @@ const loadData = async () => {
             className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
           >
             <option value="">Selecciona una Factura</option>
-            {invoicesWithoutDeboning.map(invoice => (
+             {invoicesWithPendingChannels.map(invoice => (
               <option key={invoice.id} value={invoice.id}>
                 {invoice.number} ({invoice.date})
               </option>
             ))}
           </select>
-           {invoicesWithoutDeboning.length === 0 && (
+            {invoicesWithPendingChannels.length === 0 && (
             <p className="text-sm text-gray-500 mt-1">No hay facturas pendientes de desposte.</p>
           )}
         </div>
