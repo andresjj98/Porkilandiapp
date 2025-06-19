@@ -1,12 +1,58 @@
 import React, { useState, useEffect } from 'react';
-import { getStorage } from '../utils/storage';
-import { initialInvoices } from '../mock/invoices';
+import api from '../services/api';
 
 const DeboningList = () => {
-  const [cuts, setCuts] = useState(() => getStorage('cuts') || []);
-  const [invoices, setInvoices] = useState(() => getStorage('invoices') || initialInvoices);
+ const [cuts, setCuts] = useState([]);
+  const [invoices, setInvoices] = useState([]);
   const [groupedCuts, setGroupedCuts] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
+
+    useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [respDespostes, respFacturas, respTipos, respUsers] = await Promise.all([
+          api.get('/despostes'),
+          api.get('/facturas'),
+          api.get('/tipos_corte'),
+          api.get('/usuarios')
+        ]);
+
+        const invoiceMap = {};
+        (respFacturas.data || []).forEach(inv => { invoiceMap[inv.id] = inv; });
+
+        const typeMap = {};
+        (respTipos.data || []).forEach(t => { typeMap[t.id_tipo_corte] = t.nombre_corte; });
+
+        const userMap = {};
+        (respUsers.data || []).forEach(u => { userMap[u.id_usuario] = u.nombre; });
+
+        const allCuts = [];
+        for (const d of (respDespostes.data || [])) {
+          const { data: details } = await api.get(`/detalles_corte?desposte=${d.id_desposte}`);
+          (details || []).forEach(det => {
+            const inv = invoiceMap[d.id_factura] || {};
+            const channel = (inv.channels || []).find(c => c.id === det.id_canal);
+            allCuts.push({
+              id: det.id_detalle,
+              invoiceId: d.id_factura,
+              carcassCode: channel ? channel.code : det.id_canal,
+              cutType: typeMap[det.id_tipo_corte] || 'Desconocido',
+              weight: det.peso,
+              quantity: det.cantidad,
+              operator: userMap[d.id_usuario] || 'Desconocido',
+              processingDate: d.fecha?.split('T')[0] || ''
+            });
+          });
+        }
+
+        setCuts(allCuts);
+        setInvoices(respFacturas.data || []);
+      } catch (err) {
+        console.error('Error cargando despostes:', err);
+      }
+    };
+    loadData();
+  }, []);
 
   useEffect(() => {
     const grouped = cuts.reduce((acc, cut) => {
@@ -35,12 +81,32 @@ const DeboningList = () => {
 
   const getCutsSummary = (cutsList) => {
     const summary = cutsList.reduce((acc, cut) => {
-      acc[cut.cutType] = (acc[cut.cutType] || 0) + cut.weight;
+            if (!acc[cut.cutType]) {
+        acc[cut.cutType] = { weight: 0, quantity: 0 };
+      }
+      acc[cut.cutType].weight += cut.weight;
+      acc[cut.cutType].quantity += cut.quantity;
       return acc;
     }, {});
     return Object.entries(summary);
   };
+const getOperators = (cutsList) => {
+    return [...new Set(cutsList.map(c => c.operator))].join(', ');
+  };
 
+  const getTotalPieces = (cutsList) =>
+    cutsList.reduce((acc, cut) => acc + cut.quantity, 0);
+
+  const getTotalWeight = (cutsList) =>
+    cutsList.reduce((acc, cut) => acc + cut.weight, 0);
+
+  const getMermaTotal = (invoiceId, cutsList) => {
+    const invoice = invoices.find(inv => inv.id === invoiceId);
+    if (!invoice) return 0;
+    const channelWeight = invoice.channels.reduce((acc, ch) => acc + ch.weight, 0);
+    const desposteWeight = getTotalWeight(cutsList);
+    return channelWeight - desposteWeight;
+  };
   const getTotalWeightByMeatType = (cutsList) => {
     const summary = cutsList.reduce((acc, cut) => {
       const invoice = invoices.find(inv => inv.id === cut.invoiceId);
@@ -107,7 +173,14 @@ const DeboningList = () => {
 
             return (
               <div key={invoiceNumber} className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="text-xl font-semibold text-gray-800 mb-4">Factura: {invoiceNumber}</h3>
+                              <h3 className="text-xl font-semibold text-gray-800 mb-2">Factura: {invoiceNumber}</h3>
+                <p className="text-gray-700 mb-2">Operario: {getOperators(cutsList) || 'Desconocido'}</p>
+                <p className="text-gray-700 mb-2">Cantidad total de piezas: {getTotalPieces(cutsList)}</p>
+                <p className="text-gray-700 mb-4">Total despostado: {getTotalWeight(cutsList).toFixed(2)} kg</p>
+                {invoiceId !== null && (
+                  <p className="text-gray-700 mb-4">Merma total: {getMermaTotal(invoiceId, cutsList).toFixed(2)} kg</p>
+                )}
+
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {cutsList.map(cut => (
@@ -123,9 +196,11 @@ const DeboningList = () => {
                 </div>
 
                 <div className="mt-4 p-4 bg-gray-100 rounded-lg">
-                  <h5 className="text-md font-semibold text-gray-800 mb-2">Resumen de Peso por Tipo de Corte en esta Factura</h5>
-                  {getCutsSummary(cutsList).map(([type, totalWeight]) => (
-                    <p key={type} className="text-gray-700">{type}: {totalWeight.toFixed(2)} kg</p>
+<h5 className="text-md font-semibold text-gray-800 mb-2">Resumen de Cortes</h5>
+                  {getCutsSummary(cutsList).map(([type, info]) => (
+                    <p key={type} className="text-gray-700">
+                      {type}: {info.quantity} piezas / {info.weight.toFixed(2)} kg
+                    </p>
                   ))}
 
                   <h5 className="text-md font-semibold text-gray-800 mt-4 mb-2">Total Kilos Despostado y Merma por Tipo de Carne</h5> {/* Título modificado */}
@@ -151,4 +226,3 @@ const DeboningList = () => {
 
 export default DeboningList;
 
-// DONE
