@@ -4,13 +4,13 @@ const db = require('../config/db');
 // Devuelve todas las facturas
 async function getAllFacturas() {
   const [rows] = await db.query(
-    `SELECT 
-       id_factura       AS id,         -- alias para que el front lea invoice.id
-       numero_guia      AS number,     -- alias para invoice.number
-       fecha            AS date,       -- alias para invoice.date
+    `SELECT
+       id_factura       AS id,
+       numero_guia      AS number,
+       fecha            AS date,
        fecha_sacrificio AS slaughterDate,
-       id_proveedor     AS supplierId, -- alias para invoice.supplierId
-       id_usuario       AS operatorId  -- alias para invoice.operatorId
+       id_proveedor     AS supplierId,
+       id_usuario       AS operatorId
      FROM facturas`
   );
   // ahora por cada factura obtenemos también sus canales
@@ -21,7 +21,7 @@ async function getAllFacturas() {
          c.id_canal       AS id,
          c.codigo_canal   AS code,
          c.peso           AS weight,
-         p.nombre         AS type         
+         p.nombre         AS type
        FROM canales c
        JOIN productos p ON p.id_producto = c.id_producto
        WHERE c.id_factura = ?`,
@@ -32,8 +32,45 @@ async function getAllFacturas() {
       channels: canales
     });
   }
-  return facturas
+ return facturas;
 }
+
+// Devuelve las facturas de un operario específico
+async function getFacturasByUser(userId) {
+  const [rows] = await db.query(
+    `SELECT
+       id_factura       AS id,
+       numero_guia      AS number,
+       fecha            AS date,
+       fecha_sacrificio AS slaughterDate,
+       id_proveedor     AS supplierId,
+       id_usuario       AS operatorId
+     FROM facturas
+     WHERE id_usuario = ?`,
+    [userId]
+  );
+
+  const facturas = [];
+  for (const row of rows) {
+    const [canales] = await db.query(
+      `SELECT
+         c.id_canal       AS id,
+         c.codigo_canal   AS code,
+         c.peso           AS weight,
+         p.nombre         AS type
+       FROM canales c
+       JOIN productos p ON p.id_producto = c.id_producto
+       WHERE c.id_factura = ?`,
+      [row.id]
+    );
+    facturas.push({
+      ...row,
+      channels: canales
+    });
+  }
+  return facturas;
+}
+
 
 // Devuelve una factura por ID
 async function getFacturaById(id) {
@@ -79,7 +116,6 @@ async function createFactura({ numero_guia, fecha, fecha_sacrificio, id_proveedo
   return { id: result.insertId };
 }
 
-module.exports = { getAllFacturas, getFacturaById, createFactura };
 
 // models/facturaModel.js editar factura
 async function updateFactura(id, { numero_guia, fecha, fecha_sacrificio, id_proveedor, id_usuario }) {
@@ -117,6 +153,7 @@ async function deleteFactura(id) {
 }
 module.exports = {
   getAllFacturas,
+  getFacturasByUser,
   getFacturaById,
   createFactura,
   updateFactura,

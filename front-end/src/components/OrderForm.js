@@ -1,11 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getStorage, setStorage } from '../utils/storage';
-import { initialOrders } from '../mock/orders';
-import { initialPos } from '../mock/pos';
-import { initialCutTypes } from '../mock/cutTypes';
-import { subtractFromInventory } from '../utils/inventoryLogic';
+import api from '../services/api';
 import { filterByDateRange } from '../utils/dateFilters';
-import { initialUsers } from '../mock/users';
+import { subtractFromInventory } from '../utils/inventoryLogic';
 
 
 const OrderForm = () => {
@@ -15,14 +11,14 @@ const OrderForm = () => {
   const [cuts, setCuts] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [users, setUsers] = useState([]);
-
+  const [productNameToId, setProductNameToId] = useState({});
 
   const [newOrder, setNewOrder] = useState({
     orderId: '',
     date: '',
     posId: '',
     operatorId: '',
-    status: 'Pendiente',
+    status: 'pendiente',
     items: [],
   });
 
@@ -50,20 +46,80 @@ const OrderForm = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const loadedOrders = await getStorage('orders');
-        setOrders(loadedOrders || []);
-        const loadedPos = await getStorage('pos');
-        setPosList(loadedPos || []);
-        const loadedCutTypes = await getStorage('cutTypes');
-        setCutTypes(loadedCutTypes || {});
-        const loadedCuts = await getStorage('cuts');
-        setCuts(loadedCuts || []);
-        const loadedInvoices = await getStorage('invoices');
-        setInvoices(loadedInvoices || []);
-        const loadedUsers = await getStorage('users');
-        setUsers(loadedUsers || []);
+        const [ordRes, posRes, prodRes, cutRes, userRes, factRes, detRes] = await Promise.all([
+          api.get('/ordenes'),
+          api.get('/puntos_venta'),
+          api.get('/productos'),
+          api.get('/tipos_corte'),
+          api.get('/usuarios'),
+          api.get('/facturas'),
+          api.get('/detalles_corte')
+        ]);
+
+        const prodNameToId = {};
+        const prodIdToName = {};
+        (prodRes.data || []).forEach(p => {
+          prodNameToId[p.nombre] = p.id_producto;
+          prodIdToName[p.id_producto] = p.nombre;
+        });
+
+        const cutTypesMap = {};
+        (cutRes.data || []).forEach(c => {
+          if (!cutTypesMap[c.producto]) cutTypesMap[c.producto] = [];
+          cutTypesMap[c.producto].push(c.nombre_corte);
+        });
+
+        const invoicesList = factRes.data || [];
+
+        const cutsMap = {};
+        (detRes.data || []).forEach(det => {
+          cutsMap[det.id_detalle] = {
+            id: det.id_detalle,
+            invoiceId: det.id_desposte || 0,
+            carcassCode: String(det.id_canal),
+            cutType: det.id_tipo_corte,
+            quantity: det.cantidad,
+            weight: parseFloat(det.peso)
+          };
+        });
+
+        const ordersData = await Promise.all(
+          (ordRes.data || []).map(async ord => {
+            const { data: detalles } = await api.get(`/detalle_orden?orden=${ord.id_orden}`);
+            const items = (detalles || []).map(d => ({
+              id: d.id_detalle,
+              meatType: prodIdToName[d.id_producto] || 'Desconocido',
+              cutType: 'N/A',
+              quantity: d.cantidad,
+              weight: parseFloat(d.peso_total)
+            }));
+            return {
+              id: ord.id_orden,
+              orderId: String(ord.id_orden),
+              date: ord.fecha_orden,
+              posId: ord.id_punto_venta,
+              operatorId: ord.id_usuario,
+              status: ord.estado,
+              items
+            };
+          })
+        );
+
+        const usersMapped = (userRes.data || []).map(u => ({
+          id: u.id,
+          fullName: u.nombre,
+          role: u.role
+        }));
+
+        setProductNameToId(prodNameToId);
+        setCutTypes(cutTypesMap);
+        setInvoices(invoicesList);
+        setCuts(Object.values(cutsMap));
+        setOrders(ordersData);
+        setPosList(posRes.data || []);
+        setUsers(usersMapped);
       } catch (error) {
-        console.error("Error loading initial data for OrderForm:", error);
+        console.error('Error loading initial data for OrderForm:', error);
       }
     };
     loadData();
@@ -71,12 +127,20 @@ const OrderForm = () => {
 
 
   useEffect(() => {
-    // Actualizar cutTypes si cambian en el módulo de gestión
-    const loadCutTypes = async () => {
-      const loadedCutTypes = await getStorage('cutTypes');
-      setCutTypes(loadedCutTypes || {});
+   const loadLatestCuts = async () => {
+      try {
+        const { data } = await api.get('/tipos_corte');
+        const map = {};
+        (data || []).forEach(t => {
+          if (!map[t.producto]) map[t.producto] = [];
+          map[t.producto].push(t.nombre_corte);
+        });
+        setCutTypes(map);
+      } catch (err) {
+        console.error('Error refreshing cut types:', err);
+      }
     };
-    loadCutTypes();
+    loadLatestCuts();
   }, [cutTypes]);
 
 
@@ -129,20 +193,38 @@ const OrderForm = () => {
   };
 
   const handleSaveOrder = async () => {
-    if (!newOrder.orderId || !newOrder.date || !newOrder.posId || !newOrder.operatorId || newOrder.items.length === 0) {
+    if (!newOrder.date || !newOrder.posId || !newOrder.operatorId || newOrder.items.length === 0) {
       alert('Por favor, completa los datos de la orden y agrega al menos un item.');
       return;
     }
 
     try {
-      const savedOrder = await apiPost('orders', newOrder);
-      setOrders(prev => [...prev, savedOrder]);
+          const orderPayload = {
+        fecha_orden: newOrder.date,
+        id_usuario: newOrder.operatorId,
+        id_punto_venta: newOrder.posId,
+        estado: newOrder.status
+      };
+      const { data } = await api.post('/ordenes', orderPayload);
+      const newId = data?.id;
+
+      await Promise.all(newOrder.items.map(item => {
+        const prodId = productNameToId[item.meatType];
+        return api.post('/detalle_orden', {
+          id_orden: newId,
+          id_producto: prodId,
+          cantidad: item.quantity || 0,
+          peso_total: item.weight || 0
+        });
+      }));
+
+      setOrders(prev => [...prev, { id: newId, orderId: String(newId), date: newOrder.date, posId: newOrder.posId, operatorId: newOrder.operatorId, status: newOrder.status, items: newOrder.items }]);
       setNewOrder({
         orderId: '',
         date: '',
         posId: '',
         operatorId: '',
-        status: 'Pendiente',
+        status: 'pendiente',
         items: [],
       });
       setNewItem({ meatType: '', cutType: '', quantity: '', weight: '' });
@@ -167,11 +249,11 @@ const OrderForm = () => {
   const handleDeleteOrder = async (id) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar esta orden?')) {
       try {
-        await apiDelete('orders', id);
+         await api.delete(`/ordenes/${id}`);
         setOrders(prev => prev.filter(order => order.id !== id));
         alert('Orden eliminada con éxito!');
       } catch (error) {
-        console.error("Error deleting order:", error);
+        console.error('Error deleting order:', error);
         alert('Error al eliminar la orden. Intenta de nuevo.');
       }
     }
@@ -187,14 +269,18 @@ const OrderForm = () => {
       const orderToUpdate = orders.find(order => order.id === orderId);
       if (!orderToUpdate) return;
 
-      if (editedOrderStatus === 'Completado' && orderToUpdate.status !== 'Completado') {
+      if (editedOrderStatus === 'entregada' && orderToUpdate.status !== 'entregada') {
          const updatedCuts = subtractFromInventory(cuts, invoices, orderToUpdate.items);
-         await setStorage('cuts', updatedCuts);
          setCuts(updatedCuts);
       }
 
       const updatedOrder = { ...orderToUpdate, status: editedOrderStatus };
-      await apiPut('orders', orderId, updatedOrder);
+      await api.put(`/ordenes/${orderId}`, {
+        fecha_orden: updatedOrder.date,
+        id_usuario: updatedOrder.operatorId,
+        id_punto_venta: updatedOrder.posId,
+        estado: editedOrderStatus
+      });
       setOrders(prev => prev.map(order => order.id === orderId ? updatedOrder : order));
       setEditingOrderId(null);
       setEditedOrderStatus('');
@@ -318,10 +404,9 @@ const OrderForm = () => {
               onChange={handleOrderInputChange}
               className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
             >
-              <option value="Pendiente">Pendiente</option>
-              <option value="En Proceso">En Proceso</option>
-              <option value="Completado">Completado</option>
-              <option value="Cancelado">Cancelado</option>
+             <option value="pendiente">Pendiente</option>
+            <option value="enviada">Enviada</option>
+            <option value="entregada">Entregada</option>
             </select>
           </div>
         </div>
@@ -492,10 +577,9 @@ const OrderForm = () => {
                           onChange={(e) => setEditedOrderStatus(e.target.value)}
                           className="mt-1 px-2 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="Pendiente">Pendiente</option>
-                          <option value="En Proceso">En Proceso</option>
-                          <option value="Completado">Completado</option>
-                          <option value="Cancelado">Cancelado</option>
+                          <option value="pendiente">Pendiente</option>
+                          <option value="enviada">Enviada</option>
+                          <option value="entregada">Entregada</option>
                         </select>
                         <div className="flex space-x-2 mt-2">
                           <button

@@ -13,6 +13,7 @@ const {
 
 const {
    getAllFacturas,
+   getFacturasByUser,
    getFacturaById,
    createFactura,
    updateFactura,
@@ -34,7 +35,12 @@ router.get(
   authorizeRoles('admin','operario'),
   async (req, res) => {
     try {
-      const facturas = await getAllFacturas();
+      let facturas;
+      if (String(req.user.role).toLowerCase() === 'operario') {
+        facturas = await getFacturasByUser(req.user.id);
+      } else {
+        facturas = await getAllFacturas();
+      }
       res.json(facturas);
     } catch (err) {
       console.error(err);

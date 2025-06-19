@@ -145,5 +145,3 @@ const OrderList = () => {
 };
 
 export default OrderList;
-
-// DONE
