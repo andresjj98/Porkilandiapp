@@ -40,15 +40,24 @@ const OrderForm = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
-  const operarioUsers = users.filter(user => user.role === 'Operario');
+  const operarioUsers = users.filter(
+    user => typeof user.role === 'string' && user.role.toLowerCase() === 'operario'
+  );
+
 
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [ordRes, posRes, prodRes, cutRes, userRes, factRes, detRes] = await Promise.all([
-          api.get('/ordenes'),
-          api.get('/puntos_venta'),
+        const { data } = await api.get('/puntos_venta');
+        setPosList(data || []);
+      } catch (err) {
+        console.error('Error loading puntos de venta:', err);
+      }
+
+      try {
+        const [ordRes, prodRes, cutRes, userRes, factRes, detRes] = await Promise.all([
+          api.get('/ordenes'),          
           api.get('/productos'),
           api.get('/tipos_corte'),
           api.get('/usuarios'),
@@ -115,8 +124,7 @@ const OrderForm = () => {
         setCutTypes(cutTypesMap);
         setInvoices(invoicesList);
         setCuts(Object.values(cutsMap));
-        setOrders(ordersData);
-        setPosList(posRes.data || []);
+        setOrders(ordersData);        
         setUsers(usersMapped);
       } catch (error) {
         console.error('Error loading initial data for OrderForm:', error);
