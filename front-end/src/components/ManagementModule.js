@@ -51,12 +51,12 @@ const ManagementModule = () => {
         }))
       );
       setPosList(
-  posFromApi.map(p => ({
-    id:       p.id,
-    name:     p.name,
-    location: p.location
-  }))
-);
+        posFromApi.map(p => ({
+          id: p.id,
+          name: p.name,
+          location: p.location
+        }))
+      );
 
       setCutTypes(meatTypesFromApi.reduce((acc, prod) => {
         acc[prod.nombre] = [];
@@ -176,11 +176,13 @@ const ManagementModule = () => {
     // 3) Volver a cargar la lista
     const { data: allPos } = await api.get('/puntos_venta');
     // 4) Mapear al shape que usa tu estado
-    setPosList(allPos.map(p => ({
-      id: p.id_punto_venta,
-      name: p.nombre,
-      location: p.direccion
-    })));
+     setPosList(
+      allPos.map(p => ({
+        id: p.id,
+        name: p.nombre,
+        location: p.direccion
+      }))
+    );
     // 5) Limpiar form y cerrar sección
     setNewPos({ name: '', location: '' });
     setActiveForm(null);

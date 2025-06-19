@@ -106,7 +106,7 @@ const OrderForm = () => {
               id: ord.id_orden,
               orderId: String(ord.id_orden),
               date: ord.fecha_orden,
-              posId: ord.id_punto_venta,
+              posId: ord.id_pos,
               operatorId: ord.id_usuario,
               status: ord.estado,
               items
@@ -149,7 +149,7 @@ const OrderForm = () => {
     };
     loadUsers();
   }, []);
-  
+
   useEffect(() => {
    const loadLatestCuts = async () => {
       try {

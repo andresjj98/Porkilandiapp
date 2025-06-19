@@ -3,7 +3,7 @@ const db = require('../config/db');
 
 async function getAllOrdenes() {
   const [rows] = await db.query(
-    `SELECT o.id_orden, o.fecha_orden, o.id_usuario, o.id_punto_venta, o.estado
+    `SELECT o.id_orden, o.fecha_orden, o.id_usuario, o.id_pos, o.estado
      FROM ordenes o`
   );
   return rows;
@@ -11,7 +11,7 @@ async function getAllOrdenes() {
 
 async function getOrdenById(id) {
   const [rows] = await db.query(
-    `SELECT id_orden, fecha_orden, id_usuario, id_punto_venta, estado
+    `SELECT id_orden, fecha_orden, id_usuario, id_pos, estado
      FROM ordenes
      WHERE id_orden = ?`,
     [id]
@@ -19,21 +19,21 @@ async function getOrdenById(id) {
   return rows[0];
 }
 
-async function createOrden({ fecha_orden, id_usuario, id_punto_venta, estado }) {
+async function createOrden({ fecha_orden, id_usuario, id_pos, estado }) {
   const [result] = await db.query(
-    `INSERT INTO ordenes (fecha_orden, id_usuario, id_punto_venta, estado)
+    `INSERT INTO ordenes (fecha_orden, id_usuario, id_pos, estado)
      VALUES (?, ?, ?, ?)`,
-    [fecha_orden, id_usuario, id_punto_venta || null, estado]
+    [fecha_orden, id_usuario, id_pos || null, estado]
   );
   return { id: result.insertId };
 }
 
-async function updateOrden(id, { fecha_orden, id_usuario, id_punto_venta, estado }) {
+async function updateOrden(id, { fecha_orden, id_usuario, id_pos, estado }) {
   await db.query(
     `UPDATE ordenes
-     SET fecha_orden = ?, id_usuario = ?, id_punto_venta = ?, estado = ?
+     SET fecha_orden = ?, id_usuario = ?, id_pos = ?, estado = ?
      WHERE id_orden = ?`,
-    [fecha_orden, id_usuario, id_punto_venta || null, estado, id]
+    [fecha_orden, id_usuario, id_pos || null, estado, id]
   );
   return { id };
 }

@@ -61,7 +61,7 @@ router.post(
     body('id_usuario')
       .notEmpty().withMessage('El ID de usuario es requerido')
       .isInt().withMessage('El ID de usuario debe ser un número entero'),
-    body('id_punto_venta')
+    body('id_pos')
       .optional()
       .isInt().withMessage('El ID de punto de venta debe ser un número entero'),
     body('estado')
@@ -72,8 +72,8 @@ router.post(
   validateRequest,
   async (req, res) => {
     try {
-      const { fecha_orden, id_usuario, id_punto_venta, estado } = req.body;
-      const { id } = await createOrden({ fecha_orden, id_usuario, id_punto_venta, estado });
+      const { fecha_orden, id_usuario, id_pos, estado } = req.body;
+      const { id } = await createOrden({ fecha_orden, id_usuario, id_pos, estado });
       res.status(201).json({ message: 'Orden creada', id });
     } catch (err) {
       console.error(err);
@@ -95,7 +95,7 @@ router.put(
     body('id_usuario')
       .optional()
       .isInt().withMessage('El ID de usuario debe ser un número entero'),
-    body('id_punto_venta')
+    body('id_pos')
       .optional()
       .isInt().withMessage('El ID de punto de venta debe ser un número entero'),
     body('estado')
