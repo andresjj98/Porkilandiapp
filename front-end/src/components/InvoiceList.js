@@ -1,128 +1,95 @@
-// src/components/InvoiceList.js
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';                // cliente Axios central
+import { getStorage, setStorage, apiPost, apiPut, apiDelete } from '../utils/storage'; // Importar apiPost, apiPut, apiDelete
 import { filterByDateRange } from '../utils/dateFilters';
 
-const sortChannelsNewestFirst = channels =>
-  [...channels].sort((a, b) => b.id - a.id);
-
 const InvoiceList = () => {
-  /* ---------------------------- estados básicos ---------------------------- */
-  const [invoices,        setInvoices]        = useState([]);
-  const [suppliers,       setSuppliers]       = useState([]);
-  const [users,           setUsers]           = useState([]);
-  const [products, setProducts] = useState([]); // NUEVO estado para los tipos de carne
-  /* ---------------------------- UI / formularios --------------------------- */
-  const [showAddForm,     setShowAddForm]     = useState(false);
-  const [showChannelsForm,setShowChannelsForm]= useState(false);
-  const [currentInvoiceId,setCurrentInvoiceId]= useState(null);
-  const [editingInvoiceId,setEditingInvoiceId]= useState(null);
-
-  const [newInvoice,      setNewInvoice]      = useState({
-    number: '', date: '', supplierId: '', operatorId: '', slaughterDate: ''
+  const [invoices, setInvoices] = useState([]); // Inicializar vacío, se carga con useEffect
+  const [suppliers, setSuppliers] = useState([]); // Inicializar vacío
+  const [users, setUsers] = useState([]); // Inicializar vacío
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showChannelsForm, setShowChannelsForm] = useState(false);
+  const [currentInvoiceId, setCurrentInvoiceId] = useState(null);
+  const [editingInvoiceId, setEditingInvoiceId] = useState(null);
+  const [newInvoice, setNewInvoice] = useState({
+    number: '',
+    date: '',
+    supplierId: '',
+    operatorId: '',
+    slaughterDate: ''
   });
-  const [editedInvoice,   setEditedInvoice]   = useState({ ...newInvoice });
-
-  const [newChannel,      setNewChannel]      = useState({
-    code: '', weight: '', type: 'Res', origin: ''
+  const [editedInvoice, setEditedInvoice] = useState({
+    number: '',
+    date: '',
+    supplierId: '',
+    operatorId: '',
+    slaughterDate: ''
   });
-  const [editingChannel,  setEditingChannel]  = useState({
-    invoiceId:null, channelId:null,
-    data:{ code:'', weight:'', type:'Res', origin:'' }
+  const [newChannel, setNewChannel] = useState({
+    code: '',
+    weight: '',
+    type: 'Res',
+    origin: ''
   });
 
-  const [tempChannels,    setTempChannels]    = useState([]);
+  const [editingChannel, setEditingChannel] = useState({
+    invoiceId: null,
+    channelId: null,
+    data: {
+      code: '',
+      weight: '',
+      type: 'Res',
+      origin: ''
+    }
+  });
 
-  /* ----------------------------- filtros / paginación ---------------------- */
   const [searchTerm, setSearchTerm] = useState('');
-  const [startDate,  setStartDate]  = useState('');
-  const [endDate,    setEndDate]    = useState('');
-  const [currentPage,setCurrentPage]= useState(1);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const [tempChannels, setTempChannels] = useState([]);
+
+  const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
-  /* --------------------------- helpers ------------------------------------- */
-// Filtramos “operario” ignorando mayúsculas/minúsculas:
-// Filtramos “operario” ignorando mayúsculas/minúsculas:
-const operarioUsers = users.filter(u =>
-  u.role.toLowerCase() === 'operario'
-);
+  const operarioUsers = users.filter(user => user.role === 'Operario');
 
-// Para mostrar el nombre del proveedor (ya tienes pos o proveedores):
-const getSupplierName = id =>
-  suppliers.find(s => s.id_proveedor === id)?.nombre || 'Desconocido';
+  // Cargar datos al montar el componente
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const loadedInvoices = await getStorage('invoices');
+        setInvoices(loadedInvoices || []);
+        const loadedSuppliers = await getStorage('suppliers');
+        setSuppliers(loadedSuppliers || []);
+        const loadedUsers = await getStorage('users');
+        setUsers(loadedUsers || []);
+      } catch (error) {
+        console.error("Error loading initial data for InvoiceList:", error);
+      }
+    };
+    loadData();
+  }, []); // Se ejecuta solo una vez al montar
 
-// Para mostrar el nombre del operario:  
-// Tu JSON crudo tiene “nombre” (no fullName), así que devolvemos u.nombre:
-const getOperatorName = id =>
-  users.find(u => u.id === id)?.nombre || 'Desconocido';
-  /* -------------------------- carga inicial -------------------------------- */
-   useEffect(() => {
-   const loadAll = async () => {
-     try {
-       // 1) Traer todas las facturas
-        const respFacturas = await api.get('/facturas');
-          setInvoices(
-  (respFacturas.data || []).map(inv => ({
-    ...inv,
-    date:          inv.date?.split('T')[0]          || '',
-    slaughterDate: inv.slaughterDate?.split('T')[0] || ''
-  }))
-);
-          /*id:          f.id_factura,
-          number:      f.numero_guia,
-          date:        f.fecha,
-          supplierId:  f.id_proveedor,
-          operatorId:  f.id_usuario,
-          slaughterDate: f.fecha_sacrificio,
-          // Suponiendo que el back ya te devuelve los canales en `f.canales`
-          channels:    f.canales || []
-        }));
-        setInvoices(mapped);*/
 
-       // 2) Traer todos los proveedores
-       const respProveedores = await api.get('/proveedores');
-       setSuppliers(respProveedores.data || []);
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewInvoice({ ...newInvoice, [name]: value });
+  };
 
-       // 3) Traer todos los usuarios y filtrar solo aquellos con rol "operario"
-       const respUsuarios = await api.get('/usuarios');
-const usuariosNorm = (respUsuarios.data || []).map(u => ({
-  id:     u.id_usuario,  // si tu API devuelve id_usuario
-  nombre: u.nombre,
-  role:   u.role
-}));
-setUsers(usuariosNorm);
-      // 4) Traer tipos de carne desde la tabla productos
-      const respProductos = await api.get('/productos');
-      setProducts(respProductos.data || []);
-     } catch (err) {
-       console.error('Error cargando datos:', err);
-     }
-   };
-   loadAll();
- }, []);
+  const handleEditedInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditedInvoice({ ...editedInvoice, [name]: value });
+  };
 
-  /* ---------------------- manejadores de formulario ----------------------- */
-  // Después:
-const handleInputChange = ({ target: { name, value } }) => {
-  setNewInvoice(prev => ({
-    ...prev,
-    [name]: value       // siempre string
-  }));
-};
+  const handleChannelInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewChannel({ ...newChannel, [name]: value });
+  };
 
-const handleEditedInputChange = ({ target: { name, value } }) => {
-  setEditedInvoice(prev => ({
-    ...prev,
-    [name]: value       // siempre string
-  }));
-};
-  const handleChannelInputChange= e => setNewChannel({    ...newChannel,[e.target.name]:e.target.value });
-
-  /* ------------------------- crear factura ------------------------------- */
   const handleAddInvoice = () => {
-    const { number,date,supplierId,operatorId,slaughterDate } = newInvoice;
-    if(!number||!date||!supplierId||!operatorId||!slaughterDate){
-      return alert('Completa todos los campos de la factura.');
+    if (!newInvoice.number || !newInvoice.date || !newInvoice.supplierId || !newInvoice.operatorId || !newInvoice.slaughterDate) {
+      alert('Por favor, completa todos los campos de la factura.');
+      return;
     }
     setCurrentInvoiceId(`temp-${Date.now()}`);
     setTempChannels([]);
@@ -130,179 +97,209 @@ const handleEditedInputChange = ({ target: { name, value } }) => {
     setShowChannelsForm(true);
   };
 
-  /* --------------------- canales temporales ------------------------------ */
   const handleAddTemporaryChannel = () => {
-    if(!newChannel.code||!newChannel.weight||!newChannel.type){
-      return alert('Completa Código, Peso y Tipo del canal.');
+    if (!newChannel.code || !newChannel.weight || !newChannel.type) {
+      alert('Por favor, completa los campos de Código, Peso y Tipo del canal.');
+      return;
     }
-    const ch = { id:`temp-${Date.now()}`, ...newChannel, weight:+newChannel.weight };
-    setTempChannels([...tempChannels, ch]);
-    setNewChannel({ code:'', weight:'', type:'Res', origin:'' });
-  };
-  const handleDeleteTemporaryChannel = id =>
-    setTempChannels(tempChannels.filter(ch => ch.id !== id));
 
-  /* ------------------- guardar factura + canales ------------------------- */
-const handleSaveInvoiceWithChannels = async () => {
-  const { number, date, supplierId, operatorId, slaughterDate } = newInvoice;
-  // 1) Si no hay canales, no dejamos continuar
-  if (tempChannels.length === 0) {
-    return alert('Agrega al menos un canal.');
-  }
+    const id = `temp-ch-${Date.now()}`;
+    const channelToAdd = {
+      id,
+      ...newChannel,
+      weight: parseFloat(newChannel.weight),
+    };
 
-  // 2) Validamos que el usuario haya seleccionado un Proveedor y un Operario
-  if (!newInvoice.supplierId) {
-    return alert('Debes seleccionar un Proveedor antes de guardar la factura.');
-  }
-  if (!newInvoice.operatorId) {
-    return alert('Debes seleccionar un Operario antes de guardar la factura.');
-  }
-  const supplierIdNum = parseInt(newInvoice.supplierId, 10);
-  const operatorIdNum = parseInt(newInvoice.operatorId, 10);
-
-  console.log('Valor de newInvoice.operatorId antes de parsear:', newInvoice.operatorId);
-console.log('Valor de operatorIdNum (parseado):', operatorIdNum); 
-
-  // validación temprana
-if (!number || !date || !supplierId || !operatorId || !slaughterDate) {
-  return alert('Completa todos los campos de la factura.');
-}
-  if (isNaN(operatorIdNum)) {
-    return alert('Selecciona un Operario válido.');
-  }
-  // 4) Armamos el payload según los nombres que espera el back
-  const payload = {
-    number:       newInvoice.number,           // se mapea a numero_guia en el back
-    date:         newInvoice.date,             // se mapea a fecha
-    supplierId:   supplierIdNum,
-    operatorId:   operatorIdNum,
-    slaughterDate:newInvoice.slaughterDate,    // (si existe esa columna)
-    channels: tempChannels.map(({ code, weight, type, origin }) => ({
-      code,
-      weight,
-      type,
-      origin
-    }))
+    setTempChannels([...tempChannels, channelToAdd]);
+    setNewChannel({ code: '', weight: '', type: 'Res', origin: '' });
   };
 
-  try {
-    // 5) Hacemos el POST para crear factura + canales
-    console.log('🏷️ POST /facturas payload:', payload);
-    await api.post('/facturas', payload);
+  const handleDeleteTemporaryChannel = (id) => {
+    setTempChannels(tempChannels.filter(channel => channel.id !== id));
+  };
 
-    // 6) Una vez creado, recargamos TODAS las facturas
-    const respFacturas = await api.get('/facturas');
-    setInvoices(
-  (respFacturas.data || []).map(inv => ({
-    ...inv,
-    date:          inv.date?.split('T')[0]          || '',
-    slaughterDate: inv.slaughterDate?.split('T')[0] || ''
-  }))
-);
-
-    // 7) Reseteamos el formulario
-    setNewInvoice({
-      number: '',
-      date: '',
-      supplierId: '',
-      operatorId: '',
-      slaughterDate: ''
-    });
-    setTempChannels([]);
-    setShowChannelsForm(false);
-
-    alert('Factura guardada con éxito');
-  } catch (err) {
-    console.error('Error completo de Axios:', err);
-    if (err.response?.data) {
-      console.error('Respuesta del servidor (err.response.data):', err.response.data);
-      alert('Error: ' + JSON.stringify(err.response.data));
-    } else {
-      alert('Error al guardar factura');
+  const handleSaveInvoiceWithChannels = async () => { // Ahora es asíncrona
+    if (tempChannels.length === 0) {
+      alert('Por favor, agrega al menos un canal a la factura.');
+      return;
     }
-  }
-};
 
+    const invoiceToSave = {
+      ...newInvoice,
+      channels: tempChannels.map(channel => ({ // Mapear canales temporales a formato final
+        code: channel.code,
+        weight: channel.weight,
+        type: channel.type,
+        origin: channel.origin,
+      })),
+    };
 
-  /* -------------- editar factura (PUT) ----------------------------------- */
-  const handleEditInvoice = inv => {
-    setEditingInvoiceId(inv.id);
-    setEditedInvoice({ ...inv });
-  };
-  const handleSaveEditedInvoice = async () => {
-    const { number, date, supplierId, operatorId, slaughterDate, channels = [] } = editedInvoice;
-  
-    if(!number||!date||!supplierId||!operatorId||!slaughterDate){
-      return alert('Completa todos los campos.');
-    }
-   const supplierIdNum = parseInt(supplierId, 10);
-   const operatorIdNum = parseInt(operatorId, 10);
-  // Armamos el payload según el back
-  const payload = {
-    number,
-    date,
-    supplierId: supplierIdNum,
-    operatorId: operatorIdNum,
-    slaughterDate,
-    channels  // si editas canales aquí, incluye este array
-  };
     try {
-    console.log('PUT /facturas payload:', payload);
-    const { data: upd } = await api.put(
-      `/facturas/${editingInvoiceId}`,
-      payload
-    );
-    setInvoices(prev =>
-      prev.map(i =>
-        i.id === editingInvoiceId ? upd : i
-      )
-    );
+      const savedInvoice = await apiPost('invoices', invoiceToSave); // Usar apiPost
+      setInvoices(prev => [...prev, savedInvoice]); // Actualizar estado con la factura guardada
+      setNewInvoice({ number: '', date: '', supplierId: '', operatorId: '', slaughterDate: '' });
+      setTempChannels([]);
+      setShowChannelsForm(false);
+      setCurrentInvoiceId(null);
+      alert('Factura y canales guardados con éxito!');
+    } catch (error) {
+      console.error("Error saving invoice:", error);
+      alert('Error al guardar la factura. Intenta de nuevo.');
+    }
+  };
+
+
+  const handleDeleteInvoice = async (id) => { // Ahora es asíncrona
+    if (window.confirm('¿Estás seguro de que quieres eliminar esta factura?')) {
+      try {
+        await apiDelete('invoices', id); // Usar apiDelete
+        setInvoices(prev => prev.filter(invoice => invoice.id !== id));
+        alert('Factura eliminada con éxito!');
+      } catch (error) {
+        console.error("Error deleting invoice:", error);
+        alert('Error al eliminar la factura. Intenta de nuevo.');
+      }
+    }
+  };
+
+  const handleDeleteChannel = async (invoiceId, channelId) => { // Ahora es asíncrona
+    if (window.confirm('¿Estás seguro de que quieres eliminar este canal?')) {
+      try {
+        const invoiceToUpdate = invoices.find(inv => inv.id === invoiceId);
+        if (!invoiceToUpdate) return;
+
+        const updatedChannels = invoiceToUpdate.channels.filter(channel => channel.id !== channelId);
+        const updatedInvoice = { ...invoiceToUpdate, channels: updatedChannels };
+
+        await apiPut('invoices', invoiceId, updatedInvoice); // Usar apiPut para actualizar la factura
+        setInvoices(prev => prev.map(inv => inv.id === invoiceId ? updatedInvoice : inv));
+        alert('Canal eliminado con éxito!');
+      } catch (error) {
+        console.error("Error deleting channel:", error);
+        alert('Error al eliminar el canal. Intenta de nuevo.');
+      }
+    }
+  };
+
+  const handleEditInvoice = (invoice) => {
+    setEditingInvoiceId(invoice.id);
+    setEditedInvoice({ ...invoice });
+  };
+
+  const handleSaveEditedInvoice = async () => { // Ahora es asíncrona
+    if (!editedInvoice.number || !editedInvoice.date || !editedInvoice.supplierId || !editedInvoice.operatorId || !editedInvoice.slaughterDate) {
+      alert('Por favor, completa todos los campos de la factura.');
+      return;
+    }
+
+    try {
+      const updatedInvoice = await apiPut('invoices', editingInvoiceId, editedInvoice); // Usar apiPut
+      setInvoices(prev => prev.map(inv => inv.id === editingInvoiceId ? updatedInvoice : inv));
+      setEditingInvoiceId(null);
+      setEditedInvoice({ number: '', date: '', supplierId: '', operatorId: '', slaughterDate: '' });
+      alert('Factura actualizada con éxito!');
+    } catch (error) {
+      console.error("Error updating invoice:", error);
+      alert('Error al actualizar la factura. Intenta de nuevo.');
+    }
+  };
+
+  const handleCancelEdit = () => {
     setEditingInvoiceId(null);
-    alert('Factura actualizada con éxito 🎉');
-  } catch (err) {
-    console.error(err);
-    alert('Error actualizando factura');
-  }
-};
+    setEditedInvoice({ number: '', date: '', supplierId: '', operatorId: '', slaughterDate: '' });
+  };
 
-  /* -------------- canales: editar / eliminar ----------------------------- */
-  const startEditingChannel = (invoiceId, channel) =>
-    setEditingChannel({ invoiceId, channelId:channel.id, data:{...channel} });
+  const getSupplierName = (supplierId) => {
+    const supplier = suppliers.find(sup => sup.id === supplierId);
+    return supplier ? supplier.name : 'Desconocido';
+  };
 
-  const saveChannelEdit = async () => {
+  const getOperatorName = (operatorId) => {
+    const operator = users.find(user => user.id === operatorId);
+    return operator ? operator.fullName : 'Desconocido';
+  };
+
+
+  const getChannelsSummary = (channels) => {
+    const summary = channels.reduce((acc, channel) => {
+      acc[channel.type] = (acc[channel.type] || 0) + parseFloat(channel.weight);
+      return acc;
+    }, {});
+    return Object.entries(summary);
+  };
+
+  const sortChannelsNewestFirst = (channels) => {
+    return [...channels].sort((a, b) => b.id.localeCompare(a.id));
+  };
+
+  const startEditingChannel = (invoiceId, channel) => {
+    setEditingChannel({
+      invoiceId,
+      channelId: channel.id,
+      data: { ...channel }
+    });
+  };
+
+  const saveChannelEdit = async () => { // Ahora es asíncrona
     const { invoiceId, channelId, data } = editingChannel;
-    if(!data.code||!data.weight||!data.type) return alert('Completa todos los campos');
-    const inv = invoices.find(i => i.id === invoiceId);
-    const updatedChannels = inv.channels.map(c => c.id===channelId? {...data,id:channelId}:c);
-    try{
-      const {data:updInv}= await api.put(`/facturas/${invoiceId}`, {...inv, channels:updatedChannels});
-      setInvoices(prev => prev.map(i=>i.id===invoiceId? updInv:i));
+
+    if (!data.code || !data.weight || !data.type) {
+      alert('Por favor complete todos los campos del canal');
+      return;
+    }
+
+    try {
+      const invoiceToUpdate = invoices.find(inv => inv.id === invoiceId);
+      if (!invoiceToUpdate) return;
+
+      const updatedChannels = invoiceToUpdate.channels.map(channel =>
+        channel.id === channelId ? { ...data, id: channelId } : channel
+      );
+      const updatedInvoice = { ...invoiceToUpdate, channels: updatedChannels };
+
+      await apiPut('invoices', invoiceId, updatedInvoice); // Usar apiPut
+      setInvoices(prev => prev.map(inv => inv.id === invoiceId ? updatedInvoice : inv));
       cancelChannelEdit();
-      alert('Canal actualizado con éxito 🎉');
-    }catch(err){
-      console.error(err);
-      alert('Error actualizando canal');
+      alert('Canal actualizado con éxito!');
+    } catch (error) {
+      console.error("Error updating channel:", error);
+      alert('Error al actualizar el canal. Intenta de nuevo.');
     }
   };
 
-  const cancelChannelEdit = () =>
-    setEditingChannel({ invoiceId:null, channelId:null, data:{ code:'',weight:'',type:'Res',origin:'' } });
-
-  const handleDeleteChannel = async (invoiceId, channelId) => {
-    if(!window.confirm('¿Eliminar este canal?')) return;
-    const inv = invoices.find(i=>i.id===invoiceId);
-    const updated = inv.channels.filter(c=>c.id!==channelId);
-    try{
-      const {data:updInv}= await api.put(`/facturas/${invoiceId}`, {...inv, channels:updated});
-      setInvoices(prev => prev.map(i=>i.id===invoiceId? updInv:i));
-      alert('Canal eliminado con éxito 🗑️');
-    }catch(err){
-      console.error(err);
-      alert('Error eliminando canal');
-    }
+  const cancelChannelEdit = () => {
+    setEditingChannel({
+      invoiceId: null,
+      channelId: null,
+      data: { code: '', weight: '', type: 'Res', origin: '' }
+    });
   };
 
-  /* ---------- limpiar filtros de texto y fecha ---------- */
+  const textFilteredInvoices = invoices.filter(invoice =>
+    invoice.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    getSupplierName(invoice.supplierId).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    getOperatorName(invoice.operatorId).toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const dateFilteredInvoices = filterByDateRange(textFilteredInvoices, startDate, endDate, 'date');
+
+  const sortedInvoices = [...dateFilteredInvoices].sort((a, b) => {
+    const dateA = new Date(a.date);
+    const dateB = new Date(b.date);
+    return dateB - dateA;
+  });
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+
+  const paginatedInvoices = sortedInvoices.slice(startIndex, endIndex);
+
+  const totalPages = Math.ceil(sortedInvoices.length / itemsPerPage);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
   const handleClearFilters = () => {
     setSearchTerm('');
     setStartDate('');
@@ -310,59 +307,9 @@ if (!number || !date || !supplierId || !operatorId || !slaughterDate) {
     setCurrentPage(1);
   };
 
-  /* ------------------- utilidades visuales ------------------------------- */
-  const getChannelsSummary = ch =>
-    Object.entries(ch.reduce((a,c)=>({...a,[c.type]:(a[c.type]||0)+(+c.weight)}),{}));
 
-  const filtered = filterByDateRange(
-    invoices.filter(inv => {
-      const nv = (inv.number ?? '').toString().toLowerCase();
-      const sv = (getSupplierName(inv.supplierId) ?? '').toLowerCase();
-      const ov = (getOperatorName(inv.operatorId) ?? '').toLowerCase();
-      const st = searchTerm.toLowerCase();
-      return nv.includes(st) || sv.includes(st) || ov.includes(st);
-    }),
-    startDate,
-    endDate,
-    'date'
-  ).sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  const totalPages = Math.ceil(filtered.length/itemsPerPage);
-  const pageItems  = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
-  const paginatedInvoices = pageItems;   // ← alias para que el JSX siga funcionando
-
-// Cancela el modo edición de factura
-const handleCancelEdit = () => {
-  setEditingInvoiceId(null);
-};
-
-// Elimina una factura
-const handleDeleteInvoice = async (id) => {
-  if (!window.confirm('¿Estás seguro de que quieres eliminar esta factura?')) return;
-  try {
-    await api.delete(`/facturas/${id}`);
-    const resp = await api.get('/facturas');
-    setInvoices(resp.data || []);
-    alert('Factura eliminada con éxito 🗑️');
-  } catch (err) {
-    console.error('Error eliminando factura:', err);
-    alert('No se pudo eliminar la factura');
-  }
-};
-
-// Paginación
-const handlePageChange = (page) => {
-  setCurrentPage(page);
-};
-
-  
-  /* ------------------------- renderizado ---------------------------------- */
-  /* (el JSX es el mismo que tenías, solo se tocó la lógica)                 */
-
-  /* ------------- por falta de espacio, tu JSX completo permanece igual --- */
-  /* Pegalo tal cual desde tu archivo original debajo de esta línea -------- */
-
-  return (<div className="p-6 bg-gray-50 min-h-screen">
+  return (
+    <div className="p-6 bg-gray-50 min-h-screen">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Facturas</h2>
 
       <button
@@ -408,12 +355,9 @@ const handlePageChange = (page) => {
               className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
             >
               <option value="">Selecciona un Proveedor</option>
-               {suppliers.map((supplier, idx) => (
-                <option
-                  key={`${supplier.id_proveedor}-${idx}`}
-                  value={supplier.id_proveedor}
-                >
-                  {supplier.nombre}
+              {suppliers.map(supplier => (
+                <option key={supplier.id} value={supplier.id}>
+                  {supplier.name}
                 </option>
               ))}
             </select>
@@ -428,9 +372,9 @@ const handlePageChange = (page) => {
               className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
             >
                <option value="">Selecciona un Operario</option>
-               {operarioUsers.map((user, idx) => (
-                 <option key={`${user.id}-${idx}`} value={user.id}>
-                   {user.nombre}
+               {operarioUsers.map(user => (
+                 <option key={user.id} value={user.id}>
+                   {user.fullName}
                  </option>
                ))}
             </select>
@@ -479,12 +423,10 @@ const handlePageChange = (page) => {
               onChange={handleChannelInputChange}
               className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
             >
-              <option value="">Selecciona un Tipo de Corte</option>
-             {products.map(p => (
-                <option key={p.id_producto} value={p.nombre}>
-                  {p.nombre}
-                </option>
-              ))}
+              <option value="Res">Res</option>
+              <option value="Cerdo">Cerdo</option>
+              <option value="Pollo">Pollo</option>
+              <option value="Otro">Otro</option>
             </select>
           </div>
           <div className="mt-3">
@@ -629,12 +571,9 @@ const handlePageChange = (page) => {
                       className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
                     >
                       <option value="">Selecciona un Proveedor</option>
-                      {suppliers.map((supplier, idx) => (
-                <option
-                  key={`${supplier.id_proveedor}-${idx}`}
-                  value={supplier.id_proveedor}
-                >
-                          {s.nombre}
+                      {suppliers.map(supplier => (
+                        <option key={supplier.id} value={supplier.id}>
+                          {supplier.name}
                         </option>
                       ))}
                     </select>
@@ -649,9 +588,9 @@ const handlePageChange = (page) => {
                       className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
                     >
                        <option value="">Selecciona un Operario</option>
-                       {operarioUsers.map((user, idx) => (
-                 <option key={`${user.id}-${idx}`} value={user.id}>
-                           {user.nombre}
+                       {operarioUsers.map(user => (
+                         <option key={user.id} value={user.id}>
+                           {user.fullName}
                          </option>
                        ))}
                     </select>
@@ -746,12 +685,10 @@ const handlePageChange = (page) => {
                                       }))}
                                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     >
-                                      <option value="">Selecciona un Tipo de Corte</option>
-                                        {products.map(p => (
-                                          <option key={p.id_producto} value={p.nombre}>
-                                            {p.nombre}
-                                          </option>
-                                        ))}
+                                      <option value="Res">Res</option>
+                                      <option value="Cerdo">Cerdo</option>
+                                      <option value="Pollo">Pollo</option>
+                                      <option value="Otro">Otro</option>
                                     </select>
                                   </div>
 
