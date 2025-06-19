@@ -7,6 +7,7 @@ import { filterByDateRange } from '../utils/dateFilters';
 const DeboningForm = () => {
   const [invoices, setInvoices] = useState([]); // Inicializar vacío
   const [cuts, setCuts] = useState([]); // Inicializar vacío
+  const [despostes, setDespostes] = useState([]);
   const [users, setUsers] = useState([]); // Inicializar vacío
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
   const [selectedOperatorId, setSelectedOperatorId] = useState('');
@@ -302,7 +303,7 @@ const DeboningForm = () => {
   const availableCutTypes = selectedCarcassCode ? cutTypes[getCarcassType(selectedCarcassCode)] || [] : [];
 
   const invoicesWithoutDeboning = invoices.filter(invoice => {
-    const hasDeboning = cuts.some(cut => cut.invoiceId === invoice.id);
+    const hasDeboning = despostes.some(d => d.id_factura === invoice.id);
     return !hasDeboning;
   });
 
