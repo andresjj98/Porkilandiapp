@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getStorage, setStorage } from '../utils/storage';
-import { initialInvoices } from '../mock/invoices';
-import { initialCutTypes } from '../mock/cutTypes';
+import api from '../services/api';
 import { filterByDateRange } from '../utils/dateFilters';
-import { initialUsers } from '../mock/users';
+
 
 
 const DeboningForm = () => {
@@ -17,6 +15,7 @@ const DeboningForm = () => {
   const [currentCutsForCarcass, setCurrentCutsForCarcass] = useState([]);
   const [newCut, setNewCut] = useState({ cutType: '', weight: '', quantity: '' });
   const [cutTypes, setCutTypes] = useState({}); // Inicializar vacío
+  const [cutTypeNameToId, setCutTypeNameToId] = useState({});
 
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -26,25 +25,78 @@ const DeboningForm = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
-  const operarioUsers = users.filter(user => user.role === 'Operario');
+  const operarioUsers = users.filter(
+    user => typeof user.role === 'string' && user.role.toLowerCase() === 'operario'
+  );
 
+  const loadData = async () => {
+    try {
+      const [factRes, desRes, detRes, tipoRes, userRes] = await Promise.all([
+        api.get('/facturas'),
+        api.get('/despostes'),
+        api.get('/detalles_corte'),
+        api.get('/tipos_corte'),
+        api.get('/usuarios')
+      ]);
+
+      const invoicesData = factRes.data || [];
+      setInvoices(invoicesData);
+
+      const canalMap = {};
+      invoicesData.forEach(inv => {
+        (inv.channels || []).forEach(ch => {
+          canalMap[ch.id] = { code: ch.code, type: ch.type, invoiceId: inv.id };
+        });
+      });
+
+      const cutTypesByMeat = {};
+      const cutNameToId = {};
+      const cutIdToName = {};
+      (tipoRes.data || []).forEach(t => {
+        if (!cutTypesByMeat[t.producto]) cutTypesByMeat[t.producto] = [];
+        cutTypesByMeat[t.producto].push(t.nombre_corte);
+        cutNameToId[t.nombre_corte] = t.id_tipo_corte;
+        cutIdToName[t.id_tipo_corte] = t.nombre_corte;
+      });
+
+      const desposteMap = {};
+      (desRes.data || []).forEach(d => {
+        desposteMap[d.id_desposte] = d;
+      });
+
+      const mappedCuts = (detRes.data || []).map(det => {
+        const des = desposteMap[det.id_desposte] || {};
+        const canal = canalMap[det.id_canal] || {};
+        return {
+          id: det.id_detalle,
+          invoiceId: canal.invoiceId || des.id_factura,
+          operatorId: des.id_usuario,
+          carcassCode: canal.code || String(det.id_canal),
+          cutType: cutIdToName[det.id_tipo_corte] || String(det.id_tipo_corte),
+          weight: parseFloat(det.peso),
+          quantity: det.cantidad,
+          processingDate: des.fecha
+        };
+      });
+
+      const userList = (userRes.data || []).map(u => ({
+        id: u.id,
+        fullName: u.nombre,
+        role: u.role
+      }));
+
+      setCuts(mappedCuts);
+      setUsers(userList);
+      setCutTypes(cutTypesByMeat);
+      setCutTypeNameToId(cutNameToId);
+    } catch (error) {
+      console.error('Error loading initial data for DeboningForm:', error);
+    }
+  };
 
   // Cargar datos al montar el componente
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const loadedInvoices = await getStorage('invoices');
-        setInvoices(loadedInvoices || []);
-        const loadedCuts = await getStorage('cuts');
-        setCuts(loadedCuts || []);
-        const loadedUsers = await getStorage('users');
-        setUsers(loadedUsers || []);
-        const loadedCutTypes = await getStorage('cutTypes');
-        setCutTypes(loadedCutTypes || {});
-      } catch (error) {
-        console.error("Error loading initial data for DeboningForm:", error);
-      }
-    };
+  
     loadData();
   }, []);
 
@@ -135,27 +187,33 @@ const DeboningForm = () => {
        return;
     }
 
-    const processingDate = new Date().toISOString().split('T')[0];
-    const cutsToSave = currentCutsForCarcass.map(cut => ({
-      invoiceId: selectedInvoiceId,
-      operatorId: selectedOperatorId,
-      carcassCode: selectedCarcassCode,
-      cutType: cut.cutType,
+    const invoice = invoices.find(inv => inv.id === selectedInvoiceId);
+    const channel = invoice ? invoice.channels.find(c => c.code === selectedCarcassCode) : null;
+    if (!channel) {
+      alert('Canal no encontrado en la factura seleccionada.');
+      return;
+    }
+
+     const cutsToSend = currentCutsForCarcass.map(cut => ({
+      canalId: channel.id,
+      cutTypeId: cutTypeNameToId[cut.cutType],
       weight: cut.weight,
-      quantity: cut.quantity,
-      processingDate,
+      quantity: cut.quantity
     }));
 
     try {
-      const newCuts = [...cuts, ...cutsToSave.map(c => ({ id: `cut-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, ...c }))];
-      await setStorage('cuts', newCuts);
-      setCuts(newCuts);
+      await api.post('/despostes', {
+        id_factura: selectedInvoiceId,
+        id_usuario: selectedOperatorId,
+        cuts: cutsToSend
+      });
+      await loadData();
       setCurrentCutsForCarcass([]);
       setSelectedCarcassCode('');
       setNewCut({ cutType: '', weight: '', quantity: '' });
       alert('Cortes registrados con éxito!');
     } catch (error) {
-      console.error("Error registering cuts:", error);
+      console.error('Error registering cuts:', error);
       alert('Error al registrar los cortes. Intenta de nuevo.');
     }
   };
