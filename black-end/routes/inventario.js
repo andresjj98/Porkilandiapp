@@ -9,7 +9,9 @@ const {
   getInventarioById,
   createInventario,
   updateInventario,
-  deleteInventario
+  deleteInventario,
+  getInventarioResumen,
+  getInventarioDetalles
 } = require('../models/inventarioModel');
 
 const router = express.Router();
@@ -26,6 +28,38 @@ router.get(
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Error al obtener inventario' });
+    }
+  }
+);
+
+// GET /api/inventario/resumen
+router.get(
+  '/resumen',
+  verifyToken,
+  authorizeRoles('admin', 'operario'),
+  async (req, res) => {
+    try {
+      const data = await getInventarioResumen();
+      res.json(data);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error al obtener resumen de inventario' });
+    }
+  }
+);
+
+// GET /api/inventario/detalles
+router.get(
+  '/detalles',
+  verifyToken,
+  authorizeRoles('admin', 'operario'),
+  async (req, res) => {
+    try {
+      const data = await getInventarioDetalles();
+      res.json(data);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error al obtener detalles de inventario' });
     }
   }
 );

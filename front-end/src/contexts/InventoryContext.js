@@ -9,20 +9,12 @@ export const InventoryProvider = ({ children }) => {
 
   const loadInventory = async () => {
     try {
-      const [{ data: productos }, { data: inventario }] = await Promise.all([
-        api.get('/productos'),
-        api.get('/inventario'),
-      ]);
+      const { data } = await api.get('/inventario/detalles');
 
-      const prodMap = {};
-      (productos || []).forEach(p => {
-        prodMap[p.id_producto] = p.nombre;
-      });
-
-      const mapped = (inventario || []).map(it => ({
+      const mapped = (data || []).map(it => ({
         id: it.id_inventario,
-        productId: it.id_producto,
-        productName: prodMap[it.id_producto] || 'Desconocido',
+        meatType: it.tipo_carne,
+        cutType: it.tipo_corte,
         quantity: it.cantidad,
         weight: parseFloat(it.peso_total),
         status: it.estado,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { InventoryContext } from '../contexts/InventoryContext';
+import api from '../services/api';
 
 const InventoryList = () => {
   /*const [cuts, setCuts] = useState([]);
@@ -8,6 +9,7 @@ const InventoryList = () => {
   const { items } = useContext(InventoryContext);
   const [inventory, setInventory] = useState({});
   const [totalWeightByMeatType, setTotalWeightByMeatType] = useState({});
+  const [summary, setSummary] = useState({});
 
 
   useEffect(() => {
@@ -37,8 +39,8 @@ const InventoryList = () => {
       acc[meatType][key].origins.add(originInvoiceNumber);*/
 
      const grouped = items.reduce((acc, item) => {
-      if (!acc[item.productName]) acc[item.productName] = [];
-      acc[item.productName].push(item);
+       if (!acc[item.meatType]) acc[item.meatType] = [];
+      acc[item.meatType].push(item);
 
       return acc;
     }, {});
@@ -59,10 +61,30 @@ const InventoryList = () => {
 
       acc[meatType] = (acc[meatType] || 0) + cut.weight;*/
       const totalByMeatType = items.reduce((acc, item) => {
-      acc[item.productName] = (acc[item.productName] || 0) + item.weight;
+      acc[item.meatType] = (acc[item.meatType] || 0) + item.weight;
       return acc;
     }, {});
     setTotalWeightByMeatType(totalByMeatType);
+     const fetchSummary = async () => {
+      try {
+        const { data } = await api.get('/inventario/resumen');
+        const groupedRes = data.reduce((acc, row) => {
+          if (!acc[row.tipo_carne]) acc[row.tipo_carne] = [];
+          acc[row.tipo_carne].push({
+            cut: row.tipo_corte,
+            pieces: row.total_piezas,
+            weight: row.total_kg
+          });
+          return acc;
+        }, {});
+        setSummary(groupedRes);
+      } catch (err) {
+        console.error('Error loading summary:', err);
+      }
+    };
+
+    fetchSummary();
+
 
   }, [items]);
 
@@ -85,6 +107,25 @@ const InventoryList = () => {
         )}
       </div>
 
+      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h3 className="text-xl font-semibold text-gray-800 mb-4">Resumen por Corte</h3>
+        {Object.keys(summary).length > 0 ? (
+          Object.entries(summary).map(([meat, cuts]) => (
+            <div key={meat} className="mb-4">
+              <h4 className="text-lg font-semibold text-gray-700">Tipo de Carne: {meat}</h4>
+              <ul className="ml-4 list-disc">
+                {cuts.map(c => (
+                  <li key={c.cut} className="text-gray-800">
+                    {c.cut} → {c.pieces} piezas | {c.weight.toFixed(2)} kg
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-600">No hay datos de resumen disponibles.</p>
+        )}
+      </div>
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Detalle de Inventario</h2>
       {Object.keys(inventory).length > 0 ? (
         <div className="space-y-8">
@@ -95,6 +136,7 @@ const InventoryList = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 {itemsList.map(item => (
                   <div key={item.id} className="border border-gray-200 rounded-lg p-4">
+                   <p className="text-gray-800 font-medium">Tipo de Corte: <span className="font-normal">{item.cutType}</span></p>
                     <p className="text-gray-800 font-medium">Cantidad: <span className="font-normal">{item.quantity}</span></p>
                     <p className="text-gray-800 font-medium">Peso Total: <span className="font-normal">{item.weight.toFixed(2)} kg</span></p>
                     <p className="text-gray-800 font-medium">Origen: <span className="font-normal">{item.origin}</span></p>
