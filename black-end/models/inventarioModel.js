@@ -56,10 +56,19 @@ async function deleteInventario(id) {
   return { id };
 }
 
+// Elimina registros de inventario por producto y origen
+async function deleteInventarioByProductoOrigen(id_producto, origen) {
+  await db.query(
+    'DELETE FROM inventario WHERE id_producto = ? AND origen = ?',
+    [id_producto, origen]
+  );
+}
+
 module.exports = {
   getAllInventario,
   getInventarioById,
   createInventario,
   updateInventario,
-  deleteInventario
+  deleteInventario,
+  deleteInventarioByProductoOrigen
 };

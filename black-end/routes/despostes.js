@@ -6,7 +6,8 @@ const { verifyToken, authorizeRoles } = require('../middleware/roleMiddleware');
 const {
   getAllDespostes,
   getDesposteById,
-  createDesposte
+  createDesposte,
+  deleteDesposte
 } = require('../models/desposteModel');
 const { createDetalleCorte } = require('../models/detalleCorteModel');
 
@@ -102,5 +103,21 @@ router.post(
     }
   }
 );
-
+// DELETE /api/despostes/:id
+router.delete(
+  '/:id',
+  verifyToken,
+  authorizeRoles('admin', 'operario'),
+  param('id').isInt().withMessage('El ID de desposte debe ser un número entero'),
+  validateRequest,
+  async (req, res) => {
+    try {
+      await deleteDesposte(req.params.id);
+      res.json({ message: 'Desposte eliminado' });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error al eliminar desposte' });
+    }
+  }
+);
 module.exports = router;

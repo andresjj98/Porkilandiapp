@@ -1,5 +1,8 @@
 // models/desposteModel.js
 const db = require('../config/db');
+const { getDetallesByDesposte } = require('./detalleCorteModel');
+const { getTipoCorteById } = require('./tipoCorteModel');
+const { deleteInventarioByProductoOrigen } = require('./inventarioModel');
 
 async function getAllDespostes() {
   const [rows] = await db.query(
@@ -28,4 +31,17 @@ async function createDesposte({ id_factura, id_usuario, fecha }) {
   return { id: result.insertId };
 }
 
-module.exports = { getAllDespostes, getDesposteById, createDesposte };
+// Elimina un desposte y limpia sus detalles e inventario asociado
+async function deleteDesposte(id) {
+  const detalles = await getDetallesByDesposte(id);
+  for (const det of detalles) {
+    const tipo = await getTipoCorteById(det.id_tipo_corte);
+    if (tipo && tipo.id_producto) {
+      await deleteInventarioByProductoOrigen(tipo.id_producto, `desposte:${id}`);
+    }
+  }
+  await db.query('DELETE FROM detalles_corte WHERE id_desposte = ?', [id]);
+  await db.query('DELETE FROM despostes WHERE id_desposte = ?', [id]);
+  return { id };
+}
+module.exports = { getAllDespostes, getDesposteById, createDesposte, deleteDesposte };

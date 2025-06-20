@@ -40,6 +40,10 @@ async function updateOrden(id, { fecha_orden, id_usuario, id_pos, estado }) {
 
 async function deleteOrden(id) {
   await db.query(
+    `DELETE FROM detalle_orden WHERE id_orden = ?`,
+    [id]
+  );
+  await db.query(
     `DELETE FROM ordenes WHERE id_orden = ?`,
     [id]
   );
