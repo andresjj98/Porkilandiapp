@@ -104,18 +104,22 @@ async function consumirInventarioLIFO(id_producto, cantidad, peso_total) {
     restanteCant -= tomarCant;
     restantePeso -= tomarPeso;
   }
+   // Devuelve las cantidades restantes en caso de no poder consumir todo
+  return { restanteCant, restantePeso };
+}
+
 
   // Devuelve resumen agrupado por tipo de carne y tipo de corte
 async function getInventarioResumen() {
   const [rows] = await db.query(
     `SELECT
-       tc.nombre_corte AS tipo_corte,
+       tc.nombre_corte AS tipos_corte,
        tcar.nombre     AS tipo_carne,
        SUM(i.cantidad)    AS total_piezas,
        SUM(i.peso_total)  AS total_kg
      FROM inventario i
      JOIN productos p    ON i.id_producto = p.id_producto
-     JOIN tipo_corte tc  ON p.id_tipo_corte = tc.id_tipo_corte
+     JOIN tipos_corte tc  ON p.id_tipo_corte = tc.id_tipo_corte
      JOIN tipo_carne tcar ON p.id_tipo_carne = tcar.id_tipo_carne
      WHERE i.estado = 'disponible'
      GROUP BY tcar.nombre, tc.nombre_corte
@@ -133,17 +137,17 @@ async function getInventarioDetalles() {
        i.peso_total,
        i.estado,
        i.origen,
-       tc.nombre_corte AS tipo_corte,
+       tc.nombre_corte AS tipos_corte,
        tcar.nombre     AS tipo_carne
      FROM inventario i
      JOIN productos p    ON i.id_producto = p.id_producto
-     JOIN tipo_corte tc  ON p.id_tipo_corte = tc.id_tipo_corte
+     JOIN tipos_corte tc  ON p.id_tipo_corte = tc.id_tipo_corte
      JOIN tipo_carne tcar ON p.id_tipo_carne = tcar.id_tipo_carne
      WHERE i.estado = 'disponible'`
   );
   return rows;
 }
-}
+
 module.exports = {
   getAllInventario,
   getInventarioById,

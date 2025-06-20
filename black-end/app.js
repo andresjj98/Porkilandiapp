@@ -95,7 +95,12 @@ app.use(
   verifyToken,
   productosRouter
 );
-
+app.use(
+  '/api/puntos_venta',
+  verifyToken,
+  authorizeRoles('admin', 'operario'),
+  puntosVentaRouter
+);
 // Tipos de corte
 app.use(
   '/api/tipos_corte',
@@ -131,6 +136,6 @@ app.listen(PORT, () => {
   console.log(`Servidor escuchando en puerto ${PORT}`);
 });
 
-app.use('/api/desposte', despostesRouter);
+/*app.use('/api/desposte', despostesRouter);
 
-app.use('/api/puntos_venta', require('./routes/puntos_venta'));
+app.use('/api/puntos_venta', require('./routes/puntos_venta'));*/
