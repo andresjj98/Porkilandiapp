@@ -11,6 +11,12 @@ const {
   updateOrden,
   deleteOrden
 } = require('../models/ordenModel');
+const { getDetalleByOrden } = require('../models/detalleOrdenModel');
+const {
+  crearReserva,
+  eliminarReservasPorOrden
+} = require('../models/inventarioReservaModel');
+const { consumirInventarioLIFO } = require('../models/inventarioModel');
 
 const router = express.Router();
 
@@ -106,7 +112,29 @@ router.put(
   validateRequest,
   async (req, res) => {
     try {
+      const prev = await getOrdenById(req.params.id);
       await updateOrden(req.params.id, req.body);
+      if (req.body.estado === 'entregada') {
+        const detalles = await getDetalleByOrden(req.params.id);
+        for (const det of detalles) {
+          await consumirInventarioLIFO(det.id_producto, det.cantidad, det.peso_total);
+        }
+      }
+      if (req.body.estado) {
+        if (req.body.estado === 'enviada' && prev && prev.estado !== 'enviada') {
+          const detalles = await getDetalleByOrden(req.params.id);
+          for (const det of detalles) {
+            await crearReserva({
+              id_orden: req.params.id,
+              id_producto: det.id_producto,
+              cantidad: det.cantidad
+            });
+          }
+        } else if (prev && prev.estado === 'enviada' && req.body.estado !== 'enviada') {
+          await eliminarReservasPorOrden(req.params.id);
+        }
+      }
+
       res.json({ message: 'Orden actualizada' });
     } catch (err) {
       console.error(err);
@@ -124,6 +152,7 @@ router.delete(
   validateRequest,
   async (req, res) => {
     try {
+      await eliminarReservasPorOrden(req.params.id);
       await deleteOrden(req.params.id);
       res.json({ message: 'Orden eliminada' });
     } catch (err) {
