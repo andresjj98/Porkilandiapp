@@ -1,18 +1,57 @@
 import React, { useState, useEffect } from 'react';
-import { getStorage, setStorage } from '../utils/storage'; // Importar setStorage
-import { initialOrders } from '../mock/orders';
-import { initialPos } from '../mock/pos';
+import api from '../services/api';
 
 const OrderList = () => {
-  const [orders, setOrders] = useState(() => getStorage('orders') || initialOrders);
-  const [posList, setPosList] = useState(() => getStorage('pos') || initialPos);
+  const [orders, setOrders] = useState([]);
+  const [posList, setPosList] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingOrderId, setEditingOrderId] = useState(null); // Estado para la orden que se está editando
   const [editedOrderStatus, setEditedOrderStatus] = useState(''); // Estado para el estado editado
 
   useEffect(() => {
-    setStorage('orders', orders); // Guardar órdenes en localStorage
-  }, [orders]);
+    const loadData = async () => {
+      try {
+        const [ordRes, posRes, prodRes] = await Promise.all([
+          api.get('/ordenes'),
+          api.get('/puntos_venta'),
+          api.get('/productos')
+        ]);
+
+        const prodIdToName = {};
+        (prodRes.data || []).forEach(p => {
+          prodIdToName[p.id_producto] = p.nombre;
+        });
+
+        const ordersWithDetails = await Promise.all(
+          (ordRes.data || []).map(async ord => {
+            const { data: detalles } = await api.get(`/detalle_orden?orden=${ord.id_orden}`);
+            const items = (detalles || []).map(d => ({
+              id: d.id_detalle,
+              meatType: prodIdToName[d.id_producto] || d.id_producto,
+              cutType: 'N/A',
+              quantity: d.cantidad,
+              weight: parseFloat(d.peso_total)
+            }));
+            return {
+              id: ord.id_orden,
+              orderId: String(ord.id_orden),
+              date: ord.fecha_orden,
+              posId: ord.id_pos,
+              operatorId: ord.id_usuario,
+              status: ord.estado,
+              items
+            };
+          })
+        );
+
+        setOrders(ordersWithDetails);
+        setPosList((posRes.data || []).map(p => ({ id: p.id, name: p.name })));
+      } catch (err) {
+        console.error('Error loading orders:', err);
+      }
+    };
+    loadData();
+  }, []);
 
   const getPosName = (posId) => {
     const pos = posList.find(p => p.id === posId);
@@ -26,8 +65,13 @@ const OrderList = () => {
     order.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleDeleteOrder = (id) => {
-    setOrders(orders.filter(order => order.id !== id));
+  const handleDeleteOrder = async (id) => {
+    try {
+      await api.delete(`/ordenes/${id}`);
+      setOrders(orders.filter(order => order.id !== id));
+    } catch (error) {
+      console.error('Error deleting order:', error);
+    }
   };
 
   const handleStartEditStatus = (order) => { // Iniciar edición de estado
@@ -35,16 +79,25 @@ const OrderList = () => {
     setEditedOrderStatus(order.status);
   };
 
-  const handleSaveStatus = (orderId) => { // Guardar estado editado
-    const updatedOrders = orders.map(order => {
-      if (order.id === orderId) {
-        return { ...order, status: editedOrderStatus };
-      }
-      return order;
-    });
-    setOrders(updatedOrders);
-    setEditingOrderId(null); // Salir del modo edición
-    setEditedOrderStatus(''); // Limpiar estado editado
+ const handleSaveStatus = async (orderId) => { // Guardar estado editado
+    try {
+      const orderToUpdate = orders.find(o => o.id === orderId);
+      if (!orderToUpdate) return;
+      await api.put(`/ordenes/${orderId}`, {
+        fecha_orden: orderToUpdate.date,
+        id_usuario: orderToUpdate.operatorId,
+        id_pos: orderToUpdate.posId,
+        estado: editedOrderStatus
+      });
+      const updatedOrders = orders.map(order =>
+        order.id === orderId ? { ...order, status: editedOrderStatus } : order
+      );
+      setOrders(updatedOrders);
+      setEditingOrderId(null); // Salir del modo edición
+      setEditedOrderStatus(''); // Limpiar estado editado
+    } catch (error) {
+      console.error('Error updating order:', error);
+    }
   };
 
   const handleCancelEditStatus = () => { // Cancelar edición

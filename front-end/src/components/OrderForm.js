@@ -225,7 +225,7 @@ const OrderForm = () => {
           const orderPayload = {
         fecha_orden: newOrder.date,
         id_usuario: newOrder.operatorId,
-        id_punto_venta: newOrder.posId,
+        id_pos: newOrder.posId,
         estado: newOrder.status
       };
       const { data } = await api.post('/ordenes', orderPayload);
@@ -301,7 +301,7 @@ const OrderForm = () => {
       await api.put(`/ordenes/${orderId}`, {
         fecha_orden: updatedOrder.date,
         id_usuario: updatedOrder.operatorId,
-        id_punto_venta: updatedOrder.posId,
+        id_pos: updatedOrder.posId,
         estado: editedOrderStatus
       });
       setOrders(prev => prev.map(order => order.id === orderId ? updatedOrder : order));
