@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import api from '../services/api';
+import { InventoryContext } from '../contexts/InventoryContext';
 import { filterByDateRange } from '../utils/dateFilters';
 
 
@@ -17,6 +18,8 @@ const DeboningForm = () => {
   const [newCut, setNewCut] = useState({ cutType: '', weight: '', quantity: '' });
   const [cutTypes, setCutTypes] = useState({}); // Inicializar vacío
   const [cutTypeNameToId, setCutTypeNameToId] = useState({});
+
+  const { refreshInventory } = useContext(InventoryContext);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -211,6 +214,7 @@ const loadData = async () => {
         cuts: cutsToSend
       });
       await loadData();
+      await refreshInventory();
       setCurrentCutsForCarcass([]);
       setSelectedCarcassCode('');
       setNewCut({ cutType: '', weight: '', quantity: '' });

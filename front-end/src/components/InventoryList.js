@@ -1,53 +1,13 @@
-import React, { useState, useEffect } from 'react';
-/*import { getStorage } from '../utils/storage';
-import { initialInvoices } from '../mock/invoices';
-import { initialUsers } from '../mock/users';*/
-import api from '../services/api';
+import React, { useState, useEffect, useContext } from 'react';
+import { InventoryContext } from '../contexts/InventoryContext';
 
 const InventoryList = () => {
   /*const [cuts, setCuts] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [users, setUsers] = useState([]);*/
-  const [items, setItems] = useState([]); 
+  const { items } = useContext(InventoryContext);
   const [inventory, setInventory] = useState({});
   const [totalWeightByMeatType, setTotalWeightByMeatType] = useState({});
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        /*const loadedCuts = await getStorage('cuts');
-        setCuts(loadedCuts || []);
-        const loadedInvoices = await getStorage('invoices');
-        setInvoices(loadedInvoices || []);
-        const loadedUsers = await getStorage('users');
-        setUsers(loadedUsers || []);*/
-          const [{ data: productos }, { data: inventario }] = await Promise.all([
-          api.get('/productos'),
-          api.get('/inventario')
-        ]);
-
-        const prodMap = {};
-        (productos || []).forEach(p => {
-          prodMap[p.id_producto] = p.nombre;
-        });
-
-        const mapped = (inventario || []).map(it => ({
-          id: it.id_inventario,
-          productId: it.id_producto,
-          productName: prodMap[it.id_producto] || 'Desconocido',
-          quantity: it.cantidad,
-          weight: parseFloat(it.peso_total),
-          status: it.estado,
-          origin: it.origen || ''
-        }));
-
-        setItems(mapped);
-      } catch (error) {
-        console.error('Error loading inventory:', error);
-      }
-    };
-    loadData();
-  }, []);
 
 
   useEffect(() => {
