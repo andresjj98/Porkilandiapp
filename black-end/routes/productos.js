@@ -53,14 +53,17 @@ router.post(
   '/',
   verifyToken,
   authorizeRoles('admin'),
-  body('nombre')
-    .notEmpty().withMessage('El nombre del producto es requerido')
-    .isString().withMessage('El nombre debe ser un texto'),
+  body('id_tipo_carne')
+    .notEmpty().withMessage('El tipo de carne es requerido')
+    .isInt().withMessage('El tipo de carne debe ser un número entero'),
+  body('id_tipo_corte')
+    .notEmpty().withMessage('El tipo de corte es requerido')
+    .isInt().withMessage('El tipo de corte debe ser un número entero'),
   validateRequest,
   async (req, res) => {
     try {
-      const { nombre } = req.body;
-      const { id } = await createProducto({ nombre });
+      const { id_tipo_carne, id_tipo_corte } = req.body;
+      const { id } = await createProducto({ id_tipo_carne, id_tipo_corte });
       res.status(201).json({ message: 'Producto creado', id });
     } catch (err) {
       console.error(err);
@@ -76,15 +79,18 @@ router.put(
   authorizeRoles('admin'),
   [
     param('id').isInt().withMessage('El ID de producto debe ser un número entero'),
-    body('nombre')
-      .notEmpty().withMessage('El nombre del producto es requerido')
-      .isString().withMessage('El nombre debe ser un texto'),
+    body('id_tipo_carne')
+      .notEmpty().withMessage('El tipo de carne es requerido')
+      .isInt().withMessage('El tipo de carne debe ser un número entero'),
+    body('id_tipo_corte')
+      .notEmpty().withMessage('El tipo de corte es requerido')
+      .isInt().withMessage('El tipo de corte debe ser un número entero'),
   ],
   validateRequest,
   async (req, res) => {
     try {
-      const { nombre } = req.body;
-      await updateProducto(req.params.id, { nombre });
+      const { id_tipo_carne, id_tipo_corte } = req.body;
+      await updateProducto(req.params.id, { id_tipo_carne, id_tipo_corte });
       res.json({ message: 'Producto actualizado' });
     } catch (err) {
       console.error(err);

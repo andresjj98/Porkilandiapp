@@ -23,7 +23,7 @@ const {
 
 
 // ─── NUEVO: importar la función que obtiene id_producto por nombre ────────────
-const { getProductoByNombre } = require('../models/productoModel');
+const { getProductoByTipos } = require('../models/productoModel');
 
 
 const router = express.Router();
@@ -101,7 +101,7 @@ router.post(
         supplierId,    // ← viene del frontend
         operatorId,    // ← viene del frontend
         slaughterDate, // ← viene del frontend (o undefined si no lo mandas)
-        channels       // Array de objetos { code, weight, type, origin }
+        channels       // Array de objetos { code, weight, id_tipo_carne, id_tipo_corte, origin }
       } = req.body;
 
       // Mapeo de nombres front → nombres de columnas en BD
@@ -119,10 +119,10 @@ router.post(
 
       // 2) Ahora recorro channels y creo cada canal
       for (const chan of channels) {
-        // busco el producto en la tabla `productos` por nombre:
-        const producto = await getProductoByNombre(chan.type);
+        // buscamos producto por tipo de carne y corte
+        const producto = await getProductoByTipos(chan.id_tipo_carne, chan.id_tipo_corte);
         if (!producto) {
-          return res.status(400).json({ error: `El producto "${chan.type}" no existe en BD` });
+           return res.status(400).json({ error: 'El tipo de carne o corte no existe en BD' });
         }
         // Inserto ese canal
         await createCanal({
@@ -160,7 +160,7 @@ router.put(
       supplierId,
       operatorId,
       slaughterDate,
-      channels = []      // ⇐ array de { id?, code, weight, type, origin }
+      channels = []      // ⇐ array de { id?, code, weight, id_tipo_carne, id_tipo_corte, origin }
     } = req.body;
 
     try {
@@ -187,7 +187,7 @@ router.put(
 
       // 2c) Inserta o actualiza
       for (const chan of channels) {
-        const producto = await getProductoByNombre(chan.type);
+        const producto = await getProductoByTipos(chan.id_tipo_carne, chan.id_tipo_corte);
         if (!producto) continue; // o manda error
         if (chan.id) {
           // UPDATE

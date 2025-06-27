@@ -28,7 +28,7 @@ const ManagementModule = () => {
   api.get('/usuarios'),
   api.get('/puntos_venta'),
   api.get('/proveedores'),
-  api.get('/productos'),
+  api.get('/tipo_carne'),
   api.get('/tipos_corte')
 ]);
         // guardo la respuesta tal cual llega
@@ -284,11 +284,11 @@ const handleDeleteSupplier = async (id) => {
     try {
       const updatedCutTypes = { ...cutTypes, [newMeatType]: [] };
  // 1) Crear en BD
- await api.post('/productos', { nombre: newMeatType });
+ await api.post('/tipo_carne', { nombre: newMeatType });
  alert('Tipo de carne guardado con éxito 🎉');
  // 2) Refrescar lista
- const { data: prods } = await api.get('/productos');
- setCutTypes(prods.reduce((acc, p) => {
+ const { data: types } = await api.get('/tipo_carne');
+ setCutTypes(types.reduce((acc, p) => {
    acc[p.nombre] = [];
    return acc;
  }, {}));
@@ -308,15 +308,15 @@ const handleDeleteSupplier = async (id) => {
     }
     if (window.confirm(`¿Estás seguro de que quieres eliminar el tipo de carne "${meatType}"?`)) {
       try {
- // 1) Obtener id_producto
- const { data: prods } = await api.get('/productos');
- const prod = prods.find(p => p.nombre === meatType);
+// 1) Obtener id_tipo_carne
+ const { data: types } = await api.get('/tipo_carne');
+ const prod = types.find(p => p.nombre === meatType);
  if (!prod) throw new Error('Tipo no encontrado');
  // 2) Borrar en BD
- await api.delete(`/productos/${prod.id_producto}`);
+ await api.delete(`/tipo_carne/${prod.id_tipo_carne}`);
  alert('Tipo de carne eliminado con éxito');
  // 3) Refrescar lista
- const { data: freshProds } = await api.get('/productos');
+ const { data: freshProds } = await api.get('/tipo_carne');
  setCutTypes(freshProds.reduce((acc, p) => {
    acc[p.nombre] = [];
    return acc;
@@ -344,18 +344,18 @@ const handleDeleteSupplier = async (id) => {
         return;
     }
     try {
- // 1) Buscar id_producto
- const { data: prods } = await api.get('/productos');
- const prod = prods.find(p => p.nombre === newCut.meatType);
+ // 1) Buscar id_tipo_carne
+ const { data: types } = await api.get('/tipo_carne');
+ const prod = types.find(p => p.nombre === newCut.meatType);
  if (!prod) throw new Error('Tipo de carne no válido');
  // 2) Insertar en BD
  await api.post('/tipos_corte', {
    nombre_corte: newCut.cutName,
-   id_producto:  prod.id_producto
+   id_tipo_carne:  prod.id_tipo_carne
  });
   alert('Tipo de corte guardado con éxito 🎉');
  // 3) Refrescar esa lista de cortes
- const { data: freshCuts } = await api.get(`/tipos_corte?producto=${prod.id_producto}`);
+ const { data: freshCuts } = await api.get(`/tipos_corte?tipo=${prod.id_tipo_carne}`);
  setCutTypes(ct => ({
    ...ct,
    [newCut.meatType]: freshCuts.map(c => c.nombre_corte)    
@@ -373,14 +373,14 @@ const handleDeleteSupplier = async (id) => {
     if (window.confirm(`¿Estás seguro de que quieres eliminar el corte "${cutName}" de "${meatType}"?`)) {
       try {
  // 1) Buscar id_tipo_corte
- const { data: cutsList } = await api.get(`/tipos_corte?productoNombre=${meatType}`);
+ const { data: cutsList } = await api.get(`/tipos_corte?tipoNombre=${meatType}`);
  const cut = cutsList.find(c=>c.nombre_corte===cutName);
  if (!cut) throw new Error('Corte no encontrado');
  // 2) Borrar en BD
  await api.delete(`/tipos_corte/${cut.id_tipo_corte}`);
  alert('Corte eliminado con éxito');
  // 3) Refrescar esa lista
- const { data: freshCuts } = await api.get(`/tipos_corte?producto=${cut.id_producto}`);
+ const { data: freshCuts } = await api.get(`/tipos_corte?tipo=${cut.id_tipo_carne}`);
  setCutTypes(ct => ({
    ...ct,
    [meatType]: freshCuts.map(c=>c.nombre_corte)

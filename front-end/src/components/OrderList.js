@@ -11,15 +11,15 @@ const OrderList = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [ordRes, posRes, prodRes] = await Promise.all([
+        const [ordRes, posRes, typeRes] = await Promise.all([
           api.get('/ordenes'),
           api.get('/puntos_venta'),
-          api.get('/productos')
+          api.get('/tipo_carne')
         ]);
 
-        const prodIdToName = {};
-        (prodRes.data || []).forEach(p => {
-          prodIdToName[p.id_producto] = p.nombre;
+        const typeIdToName = {};
+        (typeRes.data || []).forEach(p => {
+          typeIdToName[p.id_tipo_carne] = p.nombre;
         });
 
         const ordersWithDetails = await Promise.all(
@@ -27,7 +27,7 @@ const OrderList = () => {
             const { data: detalles } = await api.get(`/detalle_orden?orden=${ord.id_orden}`);
             const items = (detalles || []).map(d => ({
               id: d.id_detalle,
-              meatType: prodIdToName[d.id_producto] || d.id_producto,
+              meatType: typeIdToName[d.id_tipo_carne] || d.id_tipo_carne,
               cutType: 'N/A',
               quantity: d.cantidad,
               weight: parseFloat(d.peso_total)
@@ -184,7 +184,7 @@ const OrderList = () => {
               <div className="mt-4">
                 <h4 className="text-lg font-medium text-gray-800 mb-2">Items:</h4>
                 {order.items.map(item => (
-                  <p key={item.id} className="text-gray-700 text-sm">- {item.meatType} - {item.cutType} | Cantidad: {item.quantity !== null ? item.quantity : 'N/A'} | Peso: {item.weight !== null ? `${item.weight} kg` : 'N/A'} | Estado: {item.status}</p>
+                  <p key={item.id} className="text-gray-700 text-sm">- Tipo de Carne: {item.meatType} | Corte: {item.cutType} | Cantidad: {item.quantity !== null ? item.quantity : 'N/A'} | Peso: {item.weight !== null ? `${item.weight} kg` : 'N/A'} | Estado: {item.status}</p>
                 ))}
               </div>
             </div>

@@ -3,37 +3,31 @@ const db = require('../config/db');
 
 async function getAllTiposCorte() {
   const [rows] = await db.query(
-    `SELECT 
-       t.id_tipo_corte, 
-       t.nombre_corte, 
-       t.id_producto, 
-       p.nombre AS producto 
-     FROM tipos_corte t
-     JOIN productos p ON t.id_producto = p.id_producto`
+     `SELECT id_tipo_corte, nombre_corte FROM tipos_corte`
   );
   return rows;
 }
 
 async function getTipoCorteById(id) {
   const [rows] = await db.query(
-    'SELECT id_tipo_corte, nombre_corte, id_producto FROM tipos_corte WHERE id_tipo_corte = ?',
+   'SELECT id_tipo_corte, nombre_corte FROM tipos_corte WHERE id_tipo_corte = ?',
     [id]
   );
   return rows[0];
 }
 
-async function createTipoCorte({ nombre_corte, id_producto }) {
+async function createTipoCorte({ nombre_corte }) {
   const [result] = await db.query(
-    'INSERT INTO tipos_corte (nombre_corte, id_producto) VALUES (?, ?)',
-    [nombre_corte, id_producto]
+    'INSERT INTO tipos_corte (nombre_corte) VALUES (?)',
+    [nombre_corte]
   );
   return { id: result.insertId };
 }
 
-async function updateTipoCorte(id, { nombre_corte, id_producto }) {
+async function updateTipoCorte(id, { nombre_corte }) {
   await db.query(
-    'UPDATE tipos_corte SET nombre_corte = ?, id_producto = ? WHERE id_tipo_corte = ?',
-    [nombre_corte, id_producto, id]
+    'UPDATE tipos_corte SET nombre_corte = ? WHERE id_tipo_corte = ?',
+    [nombre_corte, id]
   );
   return { id };
 }
@@ -46,13 +40,14 @@ async function deleteTipoCorte(id) {
   return { id };
 }
 
-// Devuelve tipos de corte según producto
-async function getTiposByProducto(id_producto) {
+// Devuelve tipos de corte filtrados por tipo de carne usando la tabla productos
+async function getTiposByCarne(id_tipo_carne) {
   const [rows] = await db.query(
-    `SELECT id_tipo_corte, nombre_corte, id_producto
-       FROM tipos_corte
-      WHERE id_producto = ?`,
-    [id_producto]
+    `SELECT DISTINCT tc.id_tipo_corte, tc.nombre_corte
+       FROM tipos_corte tc
+       JOIN productos p ON p.id_tipo_corte = tc.id_tipo_corte
+      WHERE p.id_tipo_carne = ?`,
+    [id_tipo_carne]
   );
   return rows;
 }
@@ -63,5 +58,5 @@ module.exports = {
   createTipoCorte,
   updateTipoCorte,
   deleteTipoCorte,
-  getTiposByProducto
+  getTiposByCarne
 };

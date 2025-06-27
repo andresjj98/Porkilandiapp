@@ -4,7 +4,7 @@ const db = require('../config/db');
 // Devuelve todos los canales
 async function getAllCanales() {
   const [rows] = await db.query(
-    `SELECT id_canal, codigo_canal, id_factura, id_producto, peso 
+     `SELECT id_canal, codigo_canal, id_factura, id_tipo_carne, peso
      FROM canales`
   );
   return rows;
@@ -13,8 +13,8 @@ async function getAllCanales() {
 // Devuelve canales filtrados por ID de factura
 async function getCanalesByFactura(id_factura) {
   const [rows] = await db.query(
-    `SELECT id_canal, codigo_canal, id_factura, id_producto, peso 
-     FROM canales 
+    `SELECT id_canal, codigo_canal, id_factura, id_tipo_carne, peso
+     FROM canales
      WHERE id_factura = ?`,
     [id_factura]
   );
@@ -24,8 +24,8 @@ async function getCanalesByFactura(id_factura) {
 // Devuelve un canal por su ID
 async function getCanalById(id) {
   const [rows] = await db.query(
-    `SELECT id_canal, codigo_canal, id_factura, id_producto, peso 
-     FROM canales 
+    `SELECT id_canal, codigo_canal, id_factura, id_tipo_carne, peso
+     FROM canales
      WHERE id_canal = ?`,
     [id]
   );
@@ -33,36 +33,28 @@ async function getCanalById(id) {
 }
 
 
-async function updateCanal({id, codigo_canal, id_factura, id_producto, peso, origen}) { /* UPDATE canales SET … WHERE id_canal = id */ }
+async function updateCanal({id, codigo_canal, id_factura, id_tipo_carne, peso, origen}) { /* UPDATE canales SET … WHERE id_canal = id */ }
 async function deleteCanal(id) { /* DELETE FROM canales WHERE id_canal = ? */ }
 
 
-/* Asegúrate de pasar producto.id_producto, no producto.nombre.
-const nuevoCanal = await createCanal({
-  codigo_canal: code,
-  id_factura:   nuevaFacturaId,
-  id_producto:  producto.id_producto,
-  peso:         weight
-});*/
-
 // Crea un nuevo canal (carcasa)
-async function createCanal({ codigo_canal, id_factura, id_producto, peso }) {
+async function createCanal({ codigo_canal, id_factura, id_tipo_carne, peso }) {
   const [result] = await db.query(
-    `INSERT INTO canales (codigo_canal, id_factura, id_producto, peso) 
+     `INSERT INTO canales (codigo_canal, id_factura, id_tipo_carne, peso)
      VALUES (?, ?, ?, ?)`,
-    [codigo_canal, id_factura, id_producto, peso]
+    [codigo_canal, id_factura, id_tipo_carne, peso]
   );
   return { id: result.insertId };
 }
-async function updateCanal({ id, codigo_canal, id_factura, id_producto, peso }) {
+async function updateCanal({ id, codigo_canal, id_factura, id_tipo_carne, peso }) {
   await db.query(
     `UPDATE canales 
        SET codigo_canal = ?,
            id_factura   = ?,
-           id_producto  = ?,
+           id_tipo_carne  = ?,
            peso         = ?
      WHERE id_canal = ?`,
-    [codigo_canal, id_factura, id_producto, peso, id]
+    [codigo_canal, id_factura, id_tipo_carne, peso, id]
   );
 }
 

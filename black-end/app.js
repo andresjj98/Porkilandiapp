@@ -19,6 +19,7 @@ const despostesRouter     = require('./routes/despostes');
 const detallesCorteRouter = require('./routes/detalles_corte');
 const productosRouter   = require('./routes/productos');
 const tiposCorteRouter  = require('./routes/tipos_corte');
+const tiposCarneRouter  = require('./routes/tipo_carne');
 const ordenesRouter     = require('./routes/ordenes');
 const detalleOrdenRouter = require('./routes/detalle_orden');
 const inventarioRouter = require('./routes/inventario');
@@ -106,6 +107,11 @@ app.use(
   '/api/tipos_corte',
   verifyToken,
   tiposCorteRouter
+);
+app.use(
+  '/api/tipo_carne',
+  verifyToken,
+  tiposCarneRouter
 );
 app.use(
   '/api/ordenes',

@@ -14,7 +14,7 @@ export const InventoryProvider = ({ children }) => {
       const mapped = (data || []).map(it => ({
         id: it.id_inventario,
         meatType: it.tipo_carne,
-        cutType: it.tipo_corte,
+        cutType: it.tipo_corte || it.tipos_corte,
         quantity: it.cantidad,
         weight: parseFloat(it.peso_total),
         status: it.estado,

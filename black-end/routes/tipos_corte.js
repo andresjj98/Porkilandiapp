@@ -9,7 +9,7 @@ const {
   getTipoCorteById,
   createTipoCorte,
   updateTipoCorte,
-  getTiposByProducto, 
+  getTiposByCarne,
   deleteTipoCorte
 } = require('../models/tipoCorteModel');
 
@@ -19,14 +19,13 @@ const router = express.Router();
 router.get(
   '/',
   authorizeRoles('admin', 'operario'),
-  query('producto').optional().isInt().withMessage('El ID de producto debe ser un entero'),
+  query('carne').optional().isInt().withMessage('El ID de tipo de carne debe ser un entero'),
   async (req, res) => {
     try {
-      const { producto } = req.query;
+      const { carne } = req.query;
       let list;
-      if (producto) {
-        // Necesitamos un modelo que filtre por producto:
-        list = await getTiposByProducto(producto);
+     if (carne) {
+        list = await getTiposByCarne(carne);
       } else {
         list = await getAllTiposCorte();
       }
@@ -64,18 +63,13 @@ router.post(
   [
     body('nombre_corte')
       .notEmpty().withMessage('El nombre de corte es requerido')
-      .isString().withMessage('El nombre de corte debe ser un texto'),
-    body('id_producto')
-      .notEmpty().withMessage('El ID de producto es requerido')
-      .isInt().withMessage('El ID de producto debe ser un número entero')
+      .isString().withMessage('El nombre de corte debe ser un texto')
   ],
   validateRequest,
   async (req, res) => {
     try {
-     // 1) Extraemos del body
-     const { nombre_corte, id_producto } = req.body;
-     // 2) Lo creamos en BD
-     const { id } = await createTipoCorte({ nombre_corte, id_producto });
+     const { nombre_corte } = req.body;
+     const { id } = await createTipoCorte({ nombre_corte });
      // 3) Respondemos con el nuevo id
      res.status(201).json({ message: 'Tipo de corte creado', id });
     } catch (err) {
@@ -94,16 +88,13 @@ router.put(
     param('id').isInt().withMessage('El ID de tipo de corte debe ser un número entero'),
     body('nombre_corte')
       .notEmpty().withMessage('El nombre de corte es requerido')
-      .isString().withMessage('El nombre de corte debe ser un texto'),
-    body('id_producto')
-      .notEmpty().withMessage('El ID de producto es requerido')
-      .isInt().withMessage('El ID de producto debe ser un número entero')
+      .isString().withMessage('El nombre de corte debe ser un texto')
   ],
   validateRequest,
   async (req, res) => {
     try {
-      const { nombre_corte, id_producto } = req.body;
-      await updateTipoCorte(req.params.id, { nombre_corte, id_producto });
+      const { nombre_corte } = req.body;
+      await updateTipoCorte(req.params.id, { nombre_corte });
       res.json({ message: 'Tipo de corte actualizado' });
     } catch (err) {
       console.error(err);

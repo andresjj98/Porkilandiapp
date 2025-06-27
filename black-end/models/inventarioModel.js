@@ -63,6 +63,13 @@ async function deleteInventarioByProductoOrigen(id_producto, origen) {
     [id_producto, origen]
   );
 }
+// Elimina inventario solo por el campo origen
+async function deleteInventarioByOrigen(origen) {
+  await db.query(
+    'DELETE FROM inventario WHERE origen = ?',
+    [origen]
+  );
+}
 
 // Descuenta inventario de un producto usando estrategia LIFO
 // Resta cantidad y peso siguiendo el orden de ingreso más reciente
@@ -155,6 +162,7 @@ module.exports = {
   updateInventario,
   deleteInventario,
   deleteInventarioByProductoOrigen,
+  deleteInventarioByOrigen,
   consumirInventarioLIFO,
   getInventarioResumen,
   getInventarioDetalles

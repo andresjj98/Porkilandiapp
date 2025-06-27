@@ -37,20 +37,6 @@ async function createDetalleCorte({ id_desposte, id_canal, id_tipo_corte, peso, 
      VALUES (?, ?, ?, ?, ?)`,
     [id_desposte, id_canal, id_tipo_corte, peso, cantidad]
   );
-  try {
-    const tipo = await getTipoCorteById(id_tipo_corte);
-    if (tipo && tipo.id_producto) {
-      await createInventario({
-        id_producto: tipo.id_producto,
-        cantidad,
-        peso_total: peso,
-        estado: 'disponible',
-        origen: `desposte:${id_desposte}`
-      });
-    }
-  } catch (err) {
-    console.error('Error updating inventory after creating detalle de corte:', err);
-  }
   return { id: result.insertId };
 }
 

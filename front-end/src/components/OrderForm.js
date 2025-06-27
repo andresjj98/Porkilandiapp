@@ -11,7 +11,7 @@ const OrderForm = () => {
   const [cuts, setCuts] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [users, setUsers] = useState([]);
-  const [productNameToId, setProductNameToId] = useState({});
+  const [meatTypeNameToId, setMeatTypeNameToId] = useState({});
 
   const [newOrder, setNewOrder] = useState({
     orderId: '',
@@ -56,20 +56,20 @@ const OrderForm = () => {
       }
 
       try {
-        const [ordRes, prodRes, cutRes, userRes, factRes, detRes] = await Promise.all([
+        const [ordRes, carneRes, cutRes, userRes, factRes, detRes] = await Promise.all([
           api.get('/ordenes'),          
-          api.get('/productos'),
+          api.get('/tipo_carne'),
           api.get('/tipos_corte'),
           api.get('/usuarios'),
           api.get('/facturas'),
           api.get('/detalles_corte')
         ]);
 
-        const prodNameToId = {};
-        const prodIdToName = {};
-        (prodRes.data || []).forEach(p => {
-          prodNameToId[p.nombre] = p.id_producto;
-          prodIdToName[p.id_producto] = p.nombre;
+        const typeNameToId = {};
+        const typeIdToName = {};
+        (carneRes.data || []).forEach(p => {
+          typeNameToId[p.nombre] = p.id_tipo_carne;
+          typeIdToName[p.id_tipo_carne] = p.nombre;
         });
 
         const cutTypesMap = {};
@@ -97,7 +97,7 @@ const OrderForm = () => {
             const { data: detalles } = await api.get(`/detalle_orden?orden=${ord.id_orden}`);
             const items = (detalles || []).map(d => ({
               id: d.id_detalle,
-              meatType: prodIdToName[d.id_producto] || 'Desconocido',
+              meatType: typeIdToName[d.id_tipo_carne] || 'Desconocido',
               cutType: 'N/A',
               quantity: d.cantidad,
               weight: parseFloat(d.peso_total)
@@ -120,7 +120,7 @@ const OrderForm = () => {
           role: u.role
         }));
 
-        setProductNameToId(prodNameToId);
+        setMeatTypeNameToId(typeNameToId);
         setCutTypes(cutTypesMap);
         setInvoices(invoicesList);
         setCuts(Object.values(cutsMap));
@@ -232,10 +232,10 @@ const OrderForm = () => {
       const newId = data?.id;
 
       await Promise.all(newOrder.items.map(item => {
-        const prodId = productNameToId[item.meatType];
+        const typeId = meatTypeNameToId[item.meatType];
         return api.post('/detalle_orden', {
           id_orden: newId,
-          id_producto: prodId,
+          id_tipo_carne: typeId,
           cantidad: item.quantity || 0,
           peso_total: item.weight || 0
         });
@@ -508,7 +508,8 @@ const OrderForm = () => {
               {newOrder.items.map(item => (
                 <div key={item.id} className="border border-gray-200 rounded-lg p-3 flex justify-between items-center">
                   <div>
-                    <p className="text-gray-800 font-medium">{item.meatType} - {item.cutType}</p>
+                    <p className="text-gray-800 font-medium">Tipo de Carne: {item.meatType}</p>
+                    <p className="text-gray-800 font-medium">Corte: {item.cutType}</p>
                     <p className="text-gray-700 text-sm">
                       Cantidad: {item.quantity !== null ? `${item.quantity} piezas` : 'N/A'} |
                       Peso: {item.weight !== null ? `${item.weight} kg` : 'N/A'}
@@ -643,7 +644,7 @@ const OrderForm = () => {
                 <div className="mt-4">
                   <h4 className="text-lg font-medium text-gray-800 mb-2">Items:</h4>
                   {order.items.map(item => (
-                    <p key={item.id} className="text-gray-700 text-sm">- {item.meatType} - {item.cutType} | Cantidad: {item.quantity !== null ? item.quantity : 'N/A'} | Peso: {item.weight !== null ? `${item.weight} kg` : 'N/A'}</p>
+                    <p key={item.id} className="text-gray-700 text-sm">- Tipo de Carne: {item.meatType} | Corte: {item.cutType} | Cantidad: {item.quantity !== null ? item.quantity : 'N/A'} | Peso: {item.weight !== null ? `${item.weight} kg` : 'N/A'}</p>
                   ))}
                 </div>
               </div>
