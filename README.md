@@ -46,3 +46,7 @@ ALTER TABLE productos ADD CONSTRAINT fk_producto_tipo_corte
   ON DELETE CASCADE
   ON UPDATE CASCADE;
 ```
+
+Si no cuentas con esta configuración en la base de datos, la API se encargará
+de borrar los registros de `productos` asociados antes de eliminar el tipo de
+corte.

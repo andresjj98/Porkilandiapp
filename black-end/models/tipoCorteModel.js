@@ -66,6 +66,12 @@ async function updateTipoCorte(id, { nombre_corte }) {
 }
 
 async function deleteTipoCorte(id) {
+  // Borrar primero los productos asociados a este tipo de corte
+  await db.query(
+    'DELETE FROM productos WHERE id_tipo_corte = ?',
+    [id]
+  );
+  // Luego eliminar el tipo de corte
   await db.query(
     'DELETE FROM tipos_corte WHERE id_tipo_corte = ?',
     [id]
