@@ -349,7 +349,7 @@ const handleDeleteSupplier = async (id) => {
  const prod = types.find(p => p.nombre === newCut.meatType);
  if (!prod) throw new Error('Tipo de carne no válido');
  // 2) Insertar en BD
- await api.post('/tipos_corte', {
+ await api.post('/tipos_corte/crear', {
    nombre_corte: newCut.cutName,
    id_tipo_carne:  prod.id_tipo_carne
  });

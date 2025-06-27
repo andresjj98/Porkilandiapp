@@ -8,6 +8,7 @@ const {
   getAllTiposCorte,
   getTipoCorteById,
   createTipoCorte,
+  createTipoCorteVinculado,
   updateTipoCorte,
   getTiposByCarne,
   deleteTipoCorte
@@ -73,6 +74,34 @@ router.post(
      // 3) Respondemos con el nuevo id
      res.status(201).json({ message: 'Tipo de corte creado', id });
     } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error al crear tipo de corte' });
+    }
+  }
+);
+// POST /api/tipos_corte/crear - crea y vincula con tipo de carne
+router.post(
+  '/crear',
+  verifyToken,
+  authorizeRoles('admin', 'operario'),
+  [
+    body('id_tipo_carne')
+      .notEmpty().withMessage('El tipo de carne es requerido')
+      .isInt().withMessage('El tipo de carne debe ser numérico'),
+    body('nombre_corte')
+      .notEmpty().withMessage('El nombre de corte es requerido')
+      .isString().withMessage('El nombre de corte debe ser un texto')
+  ],
+  validateRequest,
+  async (req, res) => {
+    try {
+      const { id_tipo_carne, nombre_corte } = req.body;
+      const { id_tipo_corte } = await createTipoCorteVinculado({ id_tipo_carne, nombre_corte });
+      res.status(201).json({ message: 'Tipo de corte creado', id_tipo_corte });
+    } catch (err) {
+      if (err.code === 'DUPLICATE_COMBO') {
+        return res.status(400).json({ error: 'La combinación carne y corte ya existe' });
+      }
       console.error(err);
       res.status(500).json({ error: 'Error al crear tipo de corte' });
     }

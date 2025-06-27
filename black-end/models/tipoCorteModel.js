@@ -23,6 +23,39 @@ async function createTipoCorte({ nombre_corte }) {
   );
   return { id: result.insertId };
 }
+// Crea un nuevo tipo de corte vinculado de inmediato a un tipo de carne
+// Devuelve el id_tipo_corte insertado
+async function createTipoCorteVinculado({ id_tipo_carne, nombre_corte }) {
+  // 1) Verificar si la combinación ya existe en productos
+  const [exist] = await db.query(
+    `SELECT 1
+       FROM productos p
+       JOIN tipos_corte tc ON tc.id_tipo_corte = p.id_tipo_corte
+      WHERE p.id_tipo_carne = ? AND tc.nombre_corte = ?
+      LIMIT 1`,
+    [id_tipo_carne, nombre_corte]
+  );
+  if (exist.length > 0) {
+    const err = new Error('La combinación ya existe');
+    err.code = 'DUPLICATE_COMBO';
+    throw err;
+  }
+
+  // 2) Insertar en tipos_corte
+  const [corteRes] = await db.query(
+    'INSERT INTO tipos_corte (nombre_corte) VALUES (?)',
+    [nombre_corte]
+  );
+  const id_tipo_corte = corteRes.insertId;
+
+  // 3) Insertar en productos
+  await db.query(
+    'INSERT INTO productos (id_tipo_carne, id_tipo_corte) VALUES (?, ?)',
+    [id_tipo_carne, id_tipo_corte]
+  );
+
+  return { id_tipo_corte };
+}
 
 async function updateTipoCorte(id, { nombre_corte }) {
   await db.query(
@@ -56,6 +89,7 @@ module.exports = {
   getAllTiposCorte,
   getTipoCorteById,
   createTipoCorte,
+  createTipoCorteVinculado,
   updateTipoCorte,
   deleteTipoCorte,
   getTiposByCarne
