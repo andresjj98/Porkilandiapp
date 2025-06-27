@@ -134,10 +134,17 @@ router.post(
       }
 
       // 3) Respondo al front con ID de la factura recién creada
-      return res.status(201).json({ message: 'Factura + canales creados', id: facturaId });
+       return res.status(201).json({
+        success: true,
+        id_factura: facturaId,
+        message: 'Factura creada correctamente'
+      });
     } catch (err) {
       console.error('Error en POST /api/facturas →', err);
-      return res.status(500).json({ error: 'Error al crear factura y canales' });
+      return res.status(500).json({
+        success: false,
+        error: err.message
+      });
     }
   }
 );

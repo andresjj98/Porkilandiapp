@@ -163,16 +163,20 @@ const InvoiceList = () => {
 
     try {
        const { data } = await api.post('/facturas', invoiceToSave);
-      const newId = data?.id || null;
-      const invoiceWithId = { ...invoiceToSave, id: newId };
-      setInvoices(prev => [...prev, invoiceWithId]);
-      setNewInvoice({ number: '', date: '', supplierId: '', operatorId: '', slaughterDate: '' });
-      setTempChannels([]);
-      setShowChannelsForm(false);
-      setCurrentInvoiceId(null);
-      alert('Factura y canales guardados con éxito!');
+      if (data.success) {
+        const newId = data.id_factura || null;
+        const invoiceWithId = { ...invoiceToSave, id: newId };
+        setInvoices(prev => [...prev, invoiceWithId]);
+        setNewInvoice({ number: '', date: '', supplierId: '', operatorId: '', slaughterDate: '' });
+        setTempChannels([]);
+        setShowChannelsForm(false);
+        setCurrentInvoiceId(null);
+        alert('Factura y canales guardados con éxito!');
+      } else {
+        throw new Error(data.error || 'Error al guardar la factura');
+      }
     } catch (error) {
-      console.error("Error saving invoice:", error);
+      console.error('Error saving invoice:', error);
       alert('Error al guardar la factura. Intenta de nuevo.');
     }
   };

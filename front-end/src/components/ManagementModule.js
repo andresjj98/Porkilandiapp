@@ -6,6 +6,7 @@ const ManagementModule = () => {
   const [posList, setPosList] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [cutTypes, setCutTypes] = useState({});
+  const [loading, setLoading] = useState(true);
 
   const [activeForm, setActiveForm] = useState(null);
 
@@ -15,9 +16,10 @@ const ManagementModule = () => {
   const [newMeatType, setNewMeatType] = useState('');
   const [newCut, setNewCut] = useState({ meatType: '', cutName: '' });
 
-  useEffect(() => {
+ 
   const loadData = async () => {
     try {
+      setLoading(true);
         const [
   { data: usersFromApi },
   { data: posFromApi },
@@ -53,8 +55,8 @@ const ManagementModule = () => {
       setPosList(
         posFromApi.map(p => ({
           id: p.id,
-          name: p.name,
-          location: p.location
+         name: p.nombre,
+          location: p.direccion
         }))
       );
 
@@ -80,10 +82,13 @@ const ManagementModule = () => {
 
     } catch (error) {
       console.error("Error loading initial data for ManagementModule:", error);
+      } finally {
+      setLoading(false);
     }
   };
-  loadData();
-}, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
 
   // --- Funciones para Usuarios ---
@@ -114,15 +119,7 @@ const ManagementModule = () => {
    rol:       newUser.role.toLowerCase()
  });
  // 2) Refrescar lista entera
- const { data: all } = await api.get('/usuarios');
- setUsers(all.map(u => ({
-  id:       u.id,
-  fullName: u.nombre,
-  username: u.username,
-  userId:   u.numero_id,
-  email:    u.correo,
-  role:     u.role
-})));
+ await loadData();
     // 2) Feedback al usuario
     alert('Usuario guardado con éxito 🎉');
 
@@ -145,8 +142,7 @@ const ManagementModule = () => {
  // 1) Llamada al backend
  await api.delete(`/usuarios/${id}`);
  // 2) Refrescar lista
- const { data: all } = await api.get('/usuarios');
- setUsers(all);
+ await loadData();
       } catch (error) {
       console.error("Error deleting user:", error);
       alert('Error al eliminar el usuario. Intenta de nuevo.');
@@ -174,15 +170,7 @@ const ManagementModule = () => {
     // 2) Confirmación al usuario
     alert('Punto de venta guardado con éxito!');
     // 3) Volver a cargar la lista
-    const { data: allPos } = await api.get('/puntos_venta');
-    // 4) Mapear al shape que usa tu estado
-     setPosList(
-      allPos.map(p => ({
-        id: p.id,
-        name: p.nombre,
-        location: p.direccion
-      }))
-    );
+    await loadData();
     // 5) Limpiar form y cerrar sección
     setNewPos({ name: '', location: '' });
     setActiveForm(null);
@@ -196,8 +184,7 @@ const ManagementModule = () => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este punto de venta?')) {
       try {
  await api.delete(`/puntos_venta/${id}`);
- const { data: allPos } = await api.get('/puntos_venta');
- setPosList(allPos);
+ await loadData();
       } catch (error) {
         console.error("Error deleting POS:", error);
         alert('Error al eliminar el punto de venta. Intenta de nuevo.');
@@ -227,14 +214,7 @@ const handleAddSupplier = async () => {
     alert('Proveedor guardado con éxito 🎉');
 
     // 3) Refrescar la lista desde el backend
-    const { data: allSup } = await api.get('/proveedores');
-    setSuppliers(
-      allSup.map(s => ({
-        id:      s.id_proveedor,
-        name:    s.nombre,
-        contact: s.contacto
-      }))
-    );
+    await loadData();
     // 4) Limpiar formulario y cerrar sección
     setNewSupplier({ name: '', contact: '' });
     setActiveForm(null);
@@ -287,11 +267,7 @@ const handleDeleteSupplier = async (id) => {
  await api.post('/tipo_carne', { nombre: newMeatType });
  alert('Tipo de carne guardado con éxito 🎉');
  // 2) Refrescar lista
- const { data: types } = await api.get('/tipo_carne');
- setCutTypes(types.reduce((acc, p) => {
-   acc[p.nombre] = [];
-   return acc;
- }, {}));
+ await loadData();
  // 4) Limpiar formulario y cerrar sección
     setNewMeatType('');
     setActiveForm(null);
@@ -316,11 +292,7 @@ const handleDeleteSupplier = async (id) => {
  await api.delete(`/tipo_carne/${prod.id_tipo_carne}`);
  alert('Tipo de carne eliminado con éxito');
  // 3) Refrescar lista
- const { data: freshProds } = await api.get('/tipo_carne');
- setCutTypes(freshProds.reduce((acc, p) => {
-   acc[p.nombre] = [];
-   return acc;
- }, {}));
+  await loadData();
       } catch (error) {
         console.error("Error deleting meat type:", error);
         alert('Error al eliminar el tipo de carne. Intenta de nuevo.');
@@ -355,11 +327,7 @@ const handleDeleteSupplier = async (id) => {
  });
   alert('Tipo de corte guardado con éxito 🎉');
  // 3) Refrescar esa lista de cortes
- const { data: freshCuts } = await api.get(`/tipos_corte?tipo=${prod.id_tipo_carne}`);
- setCutTypes(ct => ({
-   ...ct,
-   [newCut.meatType]: freshCuts.map(c => c.nombre_corte)    
- }));
+ await loadData();
      // 5) Limpiar formulario y cerrar sección
     setNewCut({ meatType: '', cutName: '' });
     setActiveForm(null);
@@ -380,11 +348,7 @@ const handleDeleteSupplier = async (id) => {
  await api.delete(`/tipos_corte/${cut.id_tipo_corte}`);
  alert('Corte eliminado con éxito');
  // 3) Refrescar esa lista
- const { data: freshCuts } = await api.get(`/tipos_corte?tipo=${cut.id_tipo_carne}`);
- setCutTypes(ct => ({
-   ...ct,
-   [meatType]: freshCuts.map(c=>c.nombre_corte)
- }));
+ await loadData();
       } catch (error) {
         console.error("Error deleting cut type:", error);
         alert('Error al eliminar el corte. Intenta de nuevo.');
@@ -392,6 +356,13 @@ const handleDeleteSupplier = async (id) => {
     }
   };
 
+if (loading) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <p className="text-gray-700">Cargando...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
