@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import { getStorage, setStorage, apiPost, apiPut, apiDelete } from '../utils/storage'; // Importar apiPost, apiPut, apiDelete
 import { filterByDateRange } from '../utils/dateFilters';
 
 const InvoiceList = () => {
   const [invoices, setInvoices] = useState([]); // Inicializar vacío, se carga con useEffect
   const [suppliers, setSuppliers] = useState([]); // Inicializar vacío
   const [users, setUsers] = useState([]); // Inicializar vacío
-  const [meatTypes, setMeatTypes] = useState([]); // Tipos de carne desde el backend
   const [showAddForm, setShowAddForm] = useState(false);
   const [showChannelsForm, setShowChannelsForm] = useState(false);
   const [currentInvoiceId, setCurrentInvoiceId] = useState(null);
@@ -28,7 +27,7 @@ const InvoiceList = () => {
   const [newChannel, setNewChannel] = useState({
     code: '',
     weight: '',
-    type: '',
+    type: 'Res',
     origin: ''
   });
 
@@ -38,7 +37,7 @@ const InvoiceList = () => {
     data: {
       code: '',
       weight: '',
-      type: '',
+      type: 'Res',
       origin: ''
     }
   });
@@ -52,58 +51,20 @@ const InvoiceList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
- const operarioUsers = users.filter(
-    user => typeof user.role === 'string' && user.role.toLowerCase() === 'operario'
-  );
+  const operarioUsers = users.filter(user => user.role === 'Operario');
 
   // Cargar datos al montar el componente
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [invRes, supRes, userRes, typeRes] = await Promise.all([
-          api.get('/facturas'),
-          api.get('/proveedores'),
-          api.get('/usuarios'),
-          api.get('/tipo_carne')
-        ]);
-
-        const invoicesWithChannels = await Promise.all(
-          (invRes.data || []).map(async inv => {
-            try {
-              const { data } = await api.get(`/facturas/${inv.id}`);
-              return data;
-            } catch (err) {
-              console.error('Error loading channels for invoice', inv.id, err);
-              return { ...inv, channels: [] };
-            }
-          })
-        );
-
-        const mappedSuppliers = (supRes.data || []).map(s => ({
-          id: s.id_proveedor,
-          name: s.nombre,
-          contact: s.contacto
-        }));
-
-        const mappedUsers = (userRes.data || []).map(u => ({
-          id: u.id,
-          fullName: u.nombre,
-          userId: u.numero_id,
-          username: u.username,
-          email: u.correo,
-          role: u.role
-        }));
-
-        const mappedMeatTypes = (typeRes.data || []).map(p => ({
-          id: p.id_tipo_carne,
-          name: p.nombre
-        }));
-        setInvoices(invoicesWithChannels);
-        setSuppliers(mappedSuppliers);
-        setUsers(mappedUsers);
-        setMeatTypes(mappedMeatTypes);
+        const loadedInvoices = await getStorage('invoices');
+        setInvoices(loadedInvoices || []);
+        const loadedSuppliers = await getStorage('suppliers');
+        setSuppliers(loadedSuppliers || []);
+        const loadedUsers = await getStorage('users');
+        setUsers(loadedUsers || []);
       } catch (error) {
-        console.error('Error loading initial data for InvoiceList:', error);
+        console.error("Error loading initial data for InvoiceList:", error);
       }
     };
     loadData();
@@ -150,7 +111,7 @@ const InvoiceList = () => {
     };
 
     setTempChannels([...tempChannels, channelToAdd]);
-    setNewChannel({ code: '', weight: '', type: '', origin: '' });
+    setNewChannel({ code: '', weight: '', type: 'Res', origin: '' });
   };
 
   const handleDeleteTemporaryChannel = (id) => {
@@ -174,21 +135,15 @@ const InvoiceList = () => {
     };
 
     try {
-       const { data } = await api.post('/facturas', invoiceToSave);
-      if (data.success) {
-        const newId = data.id_factura || null;
-        const invoiceWithId = { ...invoiceToSave, id: newId };
-        setInvoices(prev => [...prev, invoiceWithId]);
-        setNewInvoice({ number: '', date: '', supplierId: '', operatorId: '', slaughterDate: '' });
-        setTempChannels([]);
-        setShowChannelsForm(false);
-        setCurrentInvoiceId(null);
-        alert('Factura y canales guardados con éxito!');
-      } else {
-        throw new Error(data.error || 'Error al guardar la factura');
-      }
+      const savedInvoice = await apiPost('invoices', invoiceToSave); // Usar apiPost
+      setInvoices(prev => [...prev, savedInvoice]); // Actualizar estado con la factura guardada
+      setNewInvoice({ number: '', date: '', supplierId: '', operatorId: '', slaughterDate: '' });
+      setTempChannels([]);
+      setShowChannelsForm(false);
+      setCurrentInvoiceId(null);
+      alert('Factura y canales guardados con éxito!');
     } catch (error) {
-      console.error('Error saving invoice:', error);
+      console.error("Error saving invoice:", error);
       alert('Error al guardar la factura. Intenta de nuevo.');
     }
   };
@@ -197,11 +152,11 @@ const InvoiceList = () => {
   const handleDeleteInvoice = async (id) => { // Ahora es asíncrona
     if (window.confirm('¿Estás seguro de que quieres eliminar esta factura?')) {
       try {
-        await api.delete(`/facturas/${id}`);
+        await apiDelete('invoices', id); // Usar apiDelete
         setInvoices(prev => prev.filter(invoice => invoice.id !== id));
         alert('Factura eliminada con éxito!');
       } catch (error) {
-        console.error('Error deleting invoice:', error);
+        console.error("Error deleting invoice:", error);
         alert('Error al eliminar la factura. Intenta de nuevo.');
       }
     }
@@ -216,7 +171,7 @@ const InvoiceList = () => {
         const updatedChannels = invoiceToUpdate.channels.filter(channel => channel.id !== channelId);
         const updatedInvoice = { ...invoiceToUpdate, channels: updatedChannels };
 
-      await api.put(`/facturas/${invoiceId}`, updatedInvoice);
+        await apiPut('invoices', invoiceId, updatedInvoice); // Usar apiPut para actualizar la factura
         setInvoices(prev => prev.map(inv => inv.id === invoiceId ? updatedInvoice : inv));
         alert('Canal eliminado con éxito!');
       } catch (error) {
@@ -238,7 +193,7 @@ const InvoiceList = () => {
     }
 
     try {
-     const { data: updatedInvoice } = await api.put(`/facturas/${editingInvoiceId}`, editedInvoice);
+      const updatedInvoice = await apiPut('invoices', editingInvoiceId, editedInvoice); // Usar apiPut
       setInvoices(prev => prev.map(inv => inv.id === editingInvoiceId ? updatedInvoice : inv));
       setEditingInvoiceId(null);
       setEditedInvoice({ number: '', date: '', supplierId: '', operatorId: '', slaughterDate: '' });
@@ -274,9 +229,7 @@ const InvoiceList = () => {
   };
 
   const sortChannelsNewestFirst = (channels) => {
-     return [...channels].sort((a, b) =>
-      String(b.id).localeCompare(String(a.id))
-    );
+    return [...channels].sort((a, b) => b.id.localeCompare(a.id));
   };
 
   const startEditingChannel = (invoiceId, channel) => {
@@ -304,7 +257,7 @@ const InvoiceList = () => {
       );
       const updatedInvoice = { ...invoiceToUpdate, channels: updatedChannels };
 
-      await api.put(`/facturas/${invoiceId}`, updatedInvoice);
+      await apiPut('invoices', invoiceId, updatedInvoice); // Usar apiPut
       setInvoices(prev => prev.map(inv => inv.id === invoiceId ? updatedInvoice : inv));
       cancelChannelEdit();
       alert('Canal actualizado con éxito!');
@@ -318,7 +271,7 @@ const InvoiceList = () => {
     setEditingChannel({
       invoiceId: null,
       channelId: null,
-      data: { code: '', weight: '', type: '', origin: '' }
+      data: { code: '', weight: '', type: 'Res', origin: '' }
     });
   };
 
@@ -470,12 +423,10 @@ const InvoiceList = () => {
               onChange={handleChannelInputChange}
               className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
             >
-             <option value="">Selecciona un Tipo</option>
-               {meatTypes.map(prod => (
-                <option key={prod.id} value={prod.name}>
-                  {prod.name}
-                </option>
-              ))}
+              <option value="Res">Res</option>
+              <option value="Cerdo">Cerdo</option>
+              <option value="Pollo">Pollo</option>
+              <option value="Otro">Otro</option>
             </select>
           </div>
           <div className="mt-3">
@@ -734,12 +685,10 @@ const InvoiceList = () => {
                                       }))}
                                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     >
-                                      <option value="">Selecciona un Tipo</option>
-                                     {meatTypes.map(prod => (
-                                        <option key={prod.id} value={prod.name}>
-                                          {prod.name}
-                                        </option>
-                                      ))}
+                                      <option value="Res">Res</option>
+                                      <option value="Cerdo">Cerdo</option>
+                                      <option value="Pollo">Pollo</option>
+                                      <option value="Otro">Otro</option>
                                     </select>
                                   </div>
 

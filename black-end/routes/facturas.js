@@ -23,7 +23,7 @@ const {
 
 
 // ─── NUEVO: importar la función que obtiene id_producto por nombre ────────────
-const { getProductoByTipos } = require('../models/productoModel');
+const { getProductoByTipos, getProductoByNombre } = require('../models/productoModel');
 
 
 const router = express.Router();
@@ -119,8 +119,14 @@ router.post(
 
       // 2) Ahora recorro channels y creo cada canal
       for (const chan of channels) {
-        // buscamos producto por tipo de carne y corte
-        const producto = await getProductoByTipos(chan.id_tipo_carne, chan.id_tipo_corte);
+        // Si el payload trae ids de carne y corte, usamos esos
+        let producto;
+        if (chan.id_tipo_carne && chan.id_tipo_corte) {
+          producto = await getProductoByTipos(chan.id_tipo_carne, chan.id_tipo_corte);
+        } else if (chan.type) {
+          // Compatibilidad con versiones antiguas del front-end que envían el nombre
+          producto = await getProductoByNombre(chan.type);
+        }
         if (!producto) {
            return res.status(400).json({ error: 'El tipo de carne o corte no existe en BD' });
         }
@@ -194,7 +200,12 @@ router.put(
 
       // 2c) Inserta o actualiza
       for (const chan of channels) {
-        const producto = await getProductoByTipos(chan.id_tipo_carne, chan.id_tipo_corte);
+        let producto;
+        if (chan.id_tipo_carne && chan.id_tipo_corte) {
+          producto = await getProductoByTipos(chan.id_tipo_carne, chan.id_tipo_corte);
+        } else if (chan.type) {
+          producto = await getProductoByNombre(chan.type);
+        }
         if (!producto) continue; // o manda error
         if (chan.id) {
           // UPDATE
@@ -203,8 +214,7 @@ router.put(
             codigo_canal: chan.code,
             id_factura: facturaId,
             id_producto: producto.id_producto,
-            peso: chan.weight,
-            origen: chan.origin
+            peso: chan.weight
           });
         } else {
           // INSERT
@@ -212,8 +222,7 @@ router.put(
             codigo_canal: chan.code,
             id_factura: facturaId,
             id_producto: producto.id_producto,
-            peso: chan.weight,
-            origen: chan.origin
+            peso: chan.weight
           });
         }
       }

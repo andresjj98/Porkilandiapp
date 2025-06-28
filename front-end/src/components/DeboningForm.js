@@ -35,7 +35,7 @@ const DeboningForm = () => {
 
 const loadData = async () => {
     try {
-      const [factRes, desRes, detRes, tipoRes, userRes] = await Promise.all([
+      const [factRes, desRes, detRes, tipoRes, userRes] = await Promise.allSettled([
         api.get('/facturas'),
         api.get('/despostes'),
         api.get('/detalles_corte'),
@@ -43,7 +43,7 @@ const loadData = async () => {
         api.get('/usuarios')
       ]);
 
-      const invoicesData = factRes.data || [];
+      const invoicesData = factRes.status === 'fulfilled' ? factRes.value.data : [];
       setInvoices(invoicesData);
 
       const canalMap = {};
@@ -56,7 +56,8 @@ const loadData = async () => {
       const cutTypesByMeat = {};
       const cutNameToId = {};
       const cutIdToName = {};
-      (tipoRes.data || []).forEach(t => {
+      const tipoData = tipoRes.status === 'fulfilled' ? tipoRes.value.data : [];
+      (tipoData || []).forEach(t => {
         if (!cutTypesByMeat[t.producto]) cutTypesByMeat[t.producto] = [];
         cutTypesByMeat[t.producto].push(t.nombre_corte);
         cutNameToId[t.nombre_corte] = t.id_tipo_corte;
@@ -64,12 +65,13 @@ const loadData = async () => {
       });
 
       const desposteMap = {};
-      const desposteList = desRes.data || [];
+      const desposteList = desRes.status === 'fulfilled' ? desRes.value.data : [];
       desposteList.forEach(d => {
         desposteMap[d.id_desposte] = d;
       });
 
-      const mappedCuts = (detRes.data || []).map(det => {
+      const detData = detRes.status === 'fulfilled' ? detRes.value.data : [];
+      const mappedCuts = (detData || []).map(det => {
         const des = desposteMap[det.id_desposte] || {};
         const canal = canalMap[det.id_canal] || {};
         return {
@@ -84,7 +86,8 @@ const loadData = async () => {
         };
       });
 
-      const userList = (userRes.data || []).map(u => ({
+      const userData = userRes.status === 'fulfilled' ? userRes.value.data : [];
+      const userList = (userData || []).map(u => ({
         id: u.id,
         fullName: u.nombre,
         role: u.role
