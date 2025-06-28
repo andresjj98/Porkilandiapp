@@ -25,13 +25,13 @@ const ManagementModule = () => {
   { data: posFromApi },
   { data: suppliersFromApi },
   { data: meatTypesFromApi },
-  { data: cutsFromApi }
+  { data: productsFromApi }
 ] = await Promise.all([
   api.get('/usuarios'),
   api.get('/puntos_venta'),
   api.get('/proveedores'),
   api.get('/tipo_carne'),
-  api.get('/tipos_corte')
+  api.get('/productos')
 ]);
         // guardo la respuesta tal cual llega
        setUsers(
@@ -60,25 +60,21 @@ const ManagementModule = () => {
         }))
       );
 
-      setCutTypes(meatTypesFromApi.reduce((acc, prod) => {
-        acc[prod.nombre] = [];
-        return acc;
-      }, {}));
-     // Ahora agrupamos:
+      
       const cutTypesMap = meatTypesFromApi.reduce((acc, prod) => {
-        // Inicializa con array vacío
         acc[prod.nombre] = [];
         return acc;
       }, {});
 
-      cutsFromApi.forEach(cut => {
-        // cut.producto es el nombre del producto (AS producto)
-        if (cutTypesMap[cut.producto]) {
-          cutTypesMap[cut.producto].push(cut.nombre_corte);
+      productsFromApi.forEach(prod => {
+        if (cutTypesMap[prod.tipo_carne]) {
+          if (!cutTypesMap[prod.tipo_carne].includes(prod.tipo_corte)) {
+            cutTypesMap[prod.tipo_carne].push(prod.tipo_corte);
+          }
         }
       });
       
-    setCutTypes(cutTypesMap);
+      setCutTypes(cutTypesMap);
 
     } catch (error) {
       console.error("Error loading initial data for ManagementModule:", error);
@@ -340,15 +336,15 @@ const handleDeleteSupplier = async (id) => {
   const handleDeleteCut = async (meatType, cutName) => {
     if (window.confirm(`¿Estás seguro de que quieres eliminar el corte "${cutName}" de "${meatType}"?`)) {
       try {
- // 1) Buscar id_tipo_corte
- const { data: cutsList } = await api.get(`/tipos_corte?tipoNombre=${meatType}`);
- const cut = cutsList.find(c=>c.nombre_corte===cutName);
- if (!cut) throw new Error('Corte no encontrado');
- // 2) Borrar en BD
- await api.delete(`/tipos_corte/${cut.id_tipo_corte}`);
- alert('Corte eliminado con éxito');
- // 3) Refrescar esa lista
- await loadData();
+  // 1) Buscar id_tipo_corte a partir de los productos
+        const { data: products } = await api.get('/productos');
+        const prod = products.find(p => p.tipo_carne === meatType && p.tipo_corte === cutName);
+        if (!prod) throw new Error('Corte no encontrado');
+        // 2) Borrar en BD
+        await api.delete(`/tipos_corte/${prod.id_tipo_corte}`);
+        alert('Corte eliminado con éxito');
+        // 3) Refrescar esa lista
+        await loadData();
       } catch (error) {
         console.error("Error deleting cut type:", error);
         alert('Error al eliminar el corte. Intenta de nuevo.');

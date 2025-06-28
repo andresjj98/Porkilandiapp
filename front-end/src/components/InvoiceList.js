@@ -67,6 +67,18 @@ const InvoiceList = () => {
           api.get('/tipo_carne')
         ]);
 
+        const invoicesWithChannels = await Promise.all(
+          (invRes.data || []).map(async inv => {
+            try {
+              const { data } = await api.get(`/facturas/${inv.id}`);
+              return data;
+            } catch (err) {
+              console.error('Error loading channels for invoice', inv.id, err);
+              return { ...inv, channels: [] };
+            }
+          })
+        );
+
         const mappedSuppliers = (supRes.data || []).map(s => ({
           id: s.id_proveedor,
           name: s.nombre,
@@ -86,7 +98,7 @@ const InvoiceList = () => {
           id: p.id_tipo_carne,
           name: p.nombre
         }));
-        setInvoices(invRes.data || []);
+        setInvoices(invoicesWithChannels);
         setSuppliers(mappedSuppliers);
         setUsers(mappedUsers);
         setMeatTypes(mappedMeatTypes);
