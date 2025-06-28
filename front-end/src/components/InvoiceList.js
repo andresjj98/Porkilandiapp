@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getStorage, setStorage, apiPost, apiPut, apiDelete } from '../utils/storage'; // Importar apiPost, apiPut, apiDelete
+import api from '../services/api';
 import { filterByDateRange } from '../utils/dateFilters';
 
 const InvoiceList = () => {
@@ -57,14 +57,16 @@ const InvoiceList = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const loadedInvoices = await getStorage('invoices');
-        setInvoices(loadedInvoices || []);
-        const loadedSuppliers = await getStorage('suppliers');
-        setSuppliers(loadedSuppliers || []);
-        const loadedUsers = await getStorage('users');
-        setUsers(loadedUsers || []);
+        const [invRes, supRes, userRes] = await Promise.all([
+          api.get('/facturas'),
+          api.get('/proveedores'),
+          api.get('/usuarios')
+        ]);
+        setInvoices(invRes.data || []);
+        setSuppliers(supRes.data || []);
+        setUsers(userRes.data || []);
       } catch (error) {
-        console.error("Error loading initial data for InvoiceList:", error);
+        console.error('Error loading initial data for InvoiceList:', error);
       }
     };
     loadData();
@@ -135,8 +137,9 @@ const InvoiceList = () => {
     };
 
     try {
-      const savedInvoice = await apiPost('invoices', invoiceToSave); // Usar apiPost
-      setInvoices(prev => [...prev, savedInvoice]); // Actualizar estado con la factura guardada
+      const { data } = await api.post('/facturas', invoiceToSave);
+      const { data: savedInvoice } = await api.get(`/facturas/${data.id_factura}`);
+      setInvoices(prev => [...prev, savedInvoice]);
       setNewInvoice({ number: '', date: '', supplierId: '', operatorId: '', slaughterDate: '' });
       setTempChannels([]);
       setShowChannelsForm(false);
@@ -152,7 +155,7 @@ const InvoiceList = () => {
   const handleDeleteInvoice = async (id) => { // Ahora es asíncrona
     if (window.confirm('¿Estás seguro de que quieres eliminar esta factura?')) {
       try {
-        await apiDelete('invoices', id); // Usar apiDelete
+         await api.delete(`/facturas/${id}`);
         setInvoices(prev => prev.filter(invoice => invoice.id !== id));
         alert('Factura eliminada con éxito!');
       } catch (error) {
@@ -171,8 +174,8 @@ const InvoiceList = () => {
         const updatedChannels = invoiceToUpdate.channels.filter(channel => channel.id !== channelId);
         const updatedInvoice = { ...invoiceToUpdate, channels: updatedChannels };
 
-        await apiPut('invoices', invoiceId, updatedInvoice); // Usar apiPut para actualizar la factura
-        setInvoices(prev => prev.map(inv => inv.id === invoiceId ? updatedInvoice : inv));
+        const { data: saved } = await api.put(`/facturas/${invoiceId}`, updatedInvoice);
+        setInvoices(prev => prev.map(inv => inv.id === invoiceId ? saved : inv));
         alert('Canal eliminado con éxito!');
       } catch (error) {
         console.error("Error deleting channel:", error);
@@ -193,7 +196,7 @@ const InvoiceList = () => {
     }
 
     try {
-      const updatedInvoice = await apiPut('invoices', editingInvoiceId, editedInvoice); // Usar apiPut
+      const { data: updatedInvoice } = await api.put(`/facturas/${editingInvoiceId}`, editedInvoice);
       setInvoices(prev => prev.map(inv => inv.id === editingInvoiceId ? updatedInvoice : inv));
       setEditingInvoiceId(null);
       setEditedInvoice({ number: '', date: '', supplierId: '', operatorId: '', slaughterDate: '' });
@@ -257,8 +260,8 @@ const InvoiceList = () => {
       );
       const updatedInvoice = { ...invoiceToUpdate, channels: updatedChannels };
 
-      await apiPut('invoices', invoiceId, updatedInvoice); // Usar apiPut
-      setInvoices(prev => prev.map(inv => inv.id === invoiceId ? updatedInvoice : inv));
+      const { data: saved } = await api.put(`/facturas/${invoiceId}`, updatedInvoice);
+      setInvoices(prev => prev.map(inv => inv.id === invoiceId ? saved : inv));
       cancelChannelEdit();
       alert('Canal actualizado con éxito!');
     } catch (error) {
