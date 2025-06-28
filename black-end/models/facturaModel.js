@@ -5,30 +5,29 @@ const db = require('../config/db');
 async function getAllFacturas() {
   const [rows] = await db.query(
     `SELECT
-       id_factura       AS id,
-       numero_guia      AS number,
-       fecha            AS date,
-       fecha_sacrificio AS slaughterDate,
-       id_proveedor     AS supplierId,
-       id_usuario       AS operatorId
-     FROM facturas`
+     id_factura       AS id,
+     numero_guia      AS number,
+     fecha            AS date,
+     fecha_sacrificio AS slaughterDate,
+     id_proveedor     AS supplierId,
+     id_usuario       AS operatorId
+   FROM facturas`
   );
   // ahora por cada factura obtenemos también sus canales
   const facturas = [];
   for (const row of rows) {
     const [canales] = await db.query(
-      `SELECT
-         c.id_canal       AS id,
-         c.codigo_canal   AS code,
-         c.peso           AS weight,
-        tc.nombre        AS type,
-         tco.nombre_corte AS cut
-       FROM canales c
-       JOIN productos p   ON p.id_producto = c.id_producto
-       JOIN tipo_carne tc ON p.id_tipo_carne = tc.id_tipo_carne
-       JOIN tipos_corte tco ON p.id_tipo_corte = tco.id_tipo_corte
-       WHERE c.id_factura = ?`,
-      [row.id]
+  `SELECT
+     c.id_canal       AS id,
+     c.codigo_canal   AS code,
+     c.peso           AS weight,
+     tc.nombre        AS type,
+     tco.nombre_corte AS cut
+   FROM canales c
+   JOIN tipo_carne tc ON c.id_tipo_carne = tc.id_tipo_carne
+   JOIN tipos_corte tco ON c.id_tipo_corte = tco.id_tipo_corte
+   WHERE c.id_factura = ?`,
+  [row.id]
     );
     facturas.push({
       ...row,
@@ -63,9 +62,8 @@ async function getFacturasByUser(userId) {
          tc.nombre        AS type,
          tco.nombre_corte AS cut
        FROM canales c
-       JOIN productos p   ON p.id_producto = c.id_producto
-       JOIN tipo_carne tc ON p.id_tipo_carne = tc.id_tipo_carne
-       JOIN tipos_corte tco ON p.id_tipo_corte = tco.id_tipo_corte
+       JOIN tipo_carne tc ON c.id_tipo_carne = tc.id_tipo_carne
+       JOIN tipos_corte tco ON c.id_tipo_corte = tco.id_tipo_corte
        WHERE c.id_factura = ?`,
       [row.id]
     );
@@ -103,9 +101,8 @@ async function getFacturaById(id) {
        tc.nombre        AS type,
        tco.nombre_corte AS cut    
      FROM canales c
-     JOIN productos p   ON p.id_producto = c.id_producto
-     JOIN tipo_carne tc ON p.id_tipo_carne = tc.id_tipo_carne
-     JOIN tipos_corte tco ON p.id_tipo_corte = tco.id_tipo_corte
+     JOIN tipo_carne tc ON c.id_tipo_carne = tc.id_tipo_carne
+     JOIN tipos_corte tco ON c.id_tipo_corte = tco.id_tipo_corte
      WHERE c.id_factura = ?`,
     [factura.id]
   );
