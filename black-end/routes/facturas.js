@@ -22,8 +22,8 @@ const {
 // ─── NUEVO: importar la función que inserta un canal ────────────
 
 
-// ─── NUEVO: importar la función que obtiene id_producto por nombre ────────────
-const { getProductoByTipos, getProductoByNombre } = require('../models/productoModel');
+// ─── Utilidad para obtener IDs desde nombres de carne y corte ────────────────
+const { getProductoByNombre } = require('../models/productoModel');
 
 
 const router = express.Router();
@@ -90,6 +90,9 @@ router.post(
     body('slaughterDate')
       .optional() // o notEmpty() si es obligatorio
       .isISO8601().withMessage('La fecha de sacrificio debe tener formato ISO 8601'),
+      body('channels').optional().isArray().withMessage('channels debe ser un arreglo'),
+    body('channels.*.id_tipo_carne').optional().isInt().withMessage('id_tipo_carne debe ser entero'),
+    body('channels.*.id_tipo_corte').optional().isInt().withMessage('id_tipo_corte debe ser entero'),
   ],
   validateRequest,
   async (req, res) => {
@@ -119,22 +122,22 @@ router.post(
 
       // 2) Ahora recorro channels y creo cada canal
       for (const chan of channels) {
-        // Si el payload trae ids de carne y corte, usamos esos
-        let producto;
-        if (chan.id_tipo_carne && chan.id_tipo_corte) {
-          producto = await getProductoByTipos(chan.id_tipo_carne, chan.id_tipo_corte);
-        } else if (chan.type) {
+        let id_tipo_carne = chan.id_tipo_carne;
+        let id_tipo_corte = chan.id_tipo_corte;
+        if (!id_tipo_carne || !id_tipo_corte) {
           // Compatibilidad con versiones antiguas del front-end que envían el nombre
-          producto = await getProductoByNombre(chan.type);
+          const producto = await getProductoByNombre(chan.type);
+          if (!producto) {
+            return res.status(400).json({ error: 'El tipo de carne o corte no existe en BD' });
+          }
+          id_tipo_carne = producto.id_tipo_carne;
+          id_tipo_corte = producto.id_tipo_corte;
         }
-        if (!producto) {
-           return res.status(400).json({ error: 'El tipo de carne o corte no existe en BD' });
-        }
-        // Inserto ese canal
         await createCanal({
           codigo_canal: chan.code,
           id_factura:   facturaId,
-          id_producto:  producto.id_producto,
+          id_tipo_carne: chan.id_tipo_carne,
+          id_tipo_corte: chan.id_tipo_corte,
           peso:         chan.weight
         });
       }
@@ -163,6 +166,9 @@ router.put(
   [
     param('id').isInt().withMessage('El ID de la factura debe ser un número entero'),
     // valida aquí cualquier campo de factura que quieras
+    body('channels').optional().isArray().withMessage('channels debe ser un arreglo'),
+    body('channels.*.id_tipo_carne').optional().isInt().withMessage('id_tipo_carne debe ser entero'),
+    body('channels.*.id_tipo_corte').optional().isInt().withMessage('id_tipo_corte debe ser entero')
   ],
   validateRequest,
   async (req, res) => {
@@ -200,20 +206,22 @@ router.put(
 
       // 2c) Inserta o actualiza
       for (const chan of channels) {
-        let producto;
-        if (chan.id_tipo_carne && chan.id_tipo_corte) {
-          producto = await getProductoByTipos(chan.id_tipo_carne, chan.id_tipo_corte);
-        } else if (chan.type) {
-          producto = await getProductoByNombre(chan.type);
+       let id_tipo_carne = chan.id_tipo_carne;
+        let id_tipo_corte = chan.id_tipo_corte;
+        if (!id_tipo_carne || !id_tipo_corte) {
+          const producto = await getProductoByNombre(chan.type);
+          if (!producto) continue; // o manda error
+          id_tipo_carne = producto.id_tipo_carne;
+          id_tipo_corte = producto.id_tipo_corte;
         }
-        if (!producto) continue; // o manda error
         if (chan.id) {
           // UPDATE
           await updateCanal({
             id: chan.id,
             codigo_canal: chan.code,
             id_factura: facturaId,
-            id_producto: producto.id_producto,
+           id_tipo_carne: producto.id_tipo_carne,
+            id_tipo_corte: producto.id_tipo_corte,
             peso: chan.weight
           });
         } else {
@@ -221,7 +229,8 @@ router.put(
           await createCanal({
             codigo_canal: chan.code,
             id_factura: facturaId,
-            id_producto: producto.id_producto,
+           id_tipo_carne: producto.id_tipo_carne,
+            id_tipo_corte: producto.id_tipo_corte,
             peso: chan.weight
           });
         }

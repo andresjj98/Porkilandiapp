@@ -71,9 +71,12 @@ router.post(
     body('id_factura')
       .notEmpty().withMessage('El ID de factura es requerido')
       .isInt().withMessage('El ID de factura debe ser un número entero'),
-    body('id_producto')
-      .notEmpty().withMessage('El ID de producto es requerido')
-      .isInt().withMessage('El ID de producto debe ser un número entero'),
+    body('id_tipo_carne')
+      .notEmpty().withMessage('El ID de tipo de carne es requerido')
+      .isInt().withMessage('El ID de tipo de carne debe ser un número entero'),
+    body('id_tipo_corte')
+      .notEmpty().withMessage('El ID de tipo de corte es requerido')
+      .isInt().withMessage('El ID de tipo de corte debe ser un número entero'),
     body('peso')
       .notEmpty().withMessage('El peso es requerido')
       .isFloat({ gt: 0 }).withMessage('El peso debe ser un número mayor que 0'),
@@ -81,8 +84,8 @@ router.post(
   validateRequest,
   async (req, res) => {
     try {
-      const { codigo_canal, id_factura, id_producto, peso } = req.body;
-      const { id } = await createCanal({ codigo_canal, id_factura, id_producto, peso });
+      const { codigo_canal, id_factura, id_tipo_carne, id_tipo_corte, peso } = req.body;
+      const { id } = await createCanal({ codigo_canal, id_factura, id_tipo_carne, id_tipo_corte, peso });
       res.status(201).json({ message: 'Canal creado', id });
     } catch (err) {
       console.error(err);
