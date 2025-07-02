@@ -21,11 +21,9 @@ async function getAllFacturas() {
      c.id_canal       AS id,
      c.codigo_canal   AS code,
      c.peso           AS weight,
-     tc.nombre        AS type,
-     tco.nombre_corte AS cut
+     tc.nombre        AS type
    FROM canales c
    JOIN tipo_carne tc ON c.id_tipo_carne = tc.id_tipo_carne
-   JOIN tipos_corte tco ON c.id_tipo_corte = tco.id_tipo_corte
    WHERE c.id_factura = ?`,
   [row.id]
     );
@@ -59,11 +57,9 @@ async function getFacturasByUser(userId) {
          c.id_canal       AS id,
          c.codigo_canal   AS code,
          c.peso           AS weight,
-         tc.nombre        AS type,
-         tco.nombre_corte AS cut
+          tc.nombre        AS type
        FROM canales c
-       JOIN tipo_carne tc ON c.id_tipo_carne = tc.id_tipo_carne
-       JOIN tipos_corte tco ON c.id_tipo_corte = tco.id_tipo_corte
+       JOIN tipo_carne tc ON c.id_tipo_carne = tc.id_tipo_carne       
        WHERE c.id_factura = ?`,
       [row.id]
     );
@@ -98,11 +94,9 @@ async function getFacturaById(id) {
        c.id_canal       AS id,
        c.codigo_canal   AS code,
        c.peso           AS weight,
-       tc.nombre        AS type,
-       tco.nombre_corte AS cut    
+       tc.nombre        AS type          
      FROM canales c
-     JOIN tipo_carne tc ON c.id_tipo_carne = tc.id_tipo_carne
-     JOIN tipos_corte tco ON c.id_tipo_corte = tco.id_tipo_corte
+     JOIN tipo_carne tc ON c.id_tipo_carne = tc.id_tipo_carne     
      WHERE c.id_factura = ?`,
     [factura.id]
   );

@@ -91,8 +91,7 @@ router.post(
       .optional() // o notEmpty() si es obligatorio
       .isISO8601().withMessage('La fecha de sacrificio debe tener formato ISO 8601'),
       body('channels').optional().isArray().withMessage('channels debe ser un arreglo'),
-    body('channels.*.id_tipo_carne').optional().isInt().withMessage('id_tipo_carne debe ser entero'),
-    body('channels.*.id_tipo_corte').optional().isInt().withMessage('id_tipo_corte debe ser entero'),
+    body('channels.*.id_tipo_carne').optional().isInt().withMessage('id_tipo_carne debe ser entero'),    
   ],
   validateRequest,
   async (req, res) => {
@@ -104,7 +103,7 @@ router.post(
         supplierId,    // ← viene del frontend
         operatorId,    // ← viene del frontend
         slaughterDate, // ← viene del frontend (o undefined si no lo mandas)
-        channels       // Array de objetos { code, weight, id_tipo_carne, id_tipo_corte, origin }
+        channels       // Array de objetos { code, weight, id_tipo_carne, origin }
       } = req.body;
 
       // Mapeo de nombres front → nombres de columnas en BD
@@ -123,21 +122,18 @@ router.post(
       // 2) Ahora recorro channels y creo cada canal
       for (const chan of channels) {
         let id_tipo_carne = chan.id_tipo_carne;
-        let id_tipo_corte = chan.id_tipo_corte;
-        if (!id_tipo_carne || !id_tipo_corte) {
+        if (!id_tipo_carne) {
           // Compatibilidad con versiones antiguas del front-end que envían el nombre
           const producto = await getProductoByNombre(chan.type);
           if (!producto) {
-            return res.status(400).json({ error: 'El tipo de carne o corte no existe en BD' });
+            return res.status(400).json({ error: 'El tipo de carne no existe en BD' });
           }
-          id_tipo_carne = producto.id_tipo_carne;
-          id_tipo_corte = producto.id_tipo_corte;
+          id_tipo_carne = producto.id_tipo_carne;          
         }
         await createCanal({
           codigo_canal: chan.code,
           id_factura:   facturaId,
-          id_tipo_carne: chan.id_tipo_carne,
-          id_tipo_corte: chan.id_tipo_corte,
+          id_tipo_carne: id_tipo_carne,
           peso:         chan.weight
         });
       }
@@ -167,8 +163,7 @@ router.put(
     param('id').isInt().withMessage('El ID de la factura debe ser un número entero'),
     // valida aquí cualquier campo de factura que quieras
     body('channels').optional().isArray().withMessage('channels debe ser un arreglo'),
-    body('channels.*.id_tipo_carne').optional().isInt().withMessage('id_tipo_carne debe ser entero'),
-    body('channels.*.id_tipo_corte').optional().isInt().withMessage('id_tipo_corte debe ser entero')
+    body('channels.*.id_tipo_carne').optional().isInt().withMessage('id_tipo_carne debe ser entero')
   ],
   validateRequest,
   async (req, res) => {
@@ -179,7 +174,7 @@ router.put(
       supplierId,
       operatorId,
       slaughterDate,
-      channels = []      // ⇐ array de { id?, code, weight, id_tipo_carne, id_tipo_corte, origin }
+      channels = []      // ⇐ array de { id?, code, weight, id_tipo_carne, origin }
     } = req.body;
 
     try {
@@ -207,12 +202,10 @@ router.put(
       // 2c) Inserta o actualiza
       for (const chan of channels) {
        let id_tipo_carne = chan.id_tipo_carne;
-        let id_tipo_corte = chan.id_tipo_corte;
-        if (!id_tipo_carne || !id_tipo_corte) {
+        if (!id_tipo_carne) {
           const producto = await getProductoByNombre(chan.type);
           if (!producto) continue; // o manda error
-          id_tipo_carne = producto.id_tipo_carne;
-          id_tipo_corte = producto.id_tipo_corte;
+          id_tipo_carne = producto.id_tipo_carne;         
         }
         if (chan.id) {
           // UPDATE
@@ -220,8 +213,7 @@ router.put(
             id: chan.id,
             codigo_canal: chan.code,
             id_factura: facturaId,
-           id_tipo_carne: producto.id_tipo_carne,
-            id_tipo_corte: producto.id_tipo_corte,
+           id_tipo_carne: id_tipo_carne,
             peso: chan.weight
           });
         } else {
@@ -229,8 +221,7 @@ router.put(
           await createCanal({
             codigo_canal: chan.code,
             id_factura: facturaId,
-           id_tipo_carne: producto.id_tipo_carne,
-            id_tipo_corte: producto.id_tipo_corte,
+           id_tipo_carne: id_tipo_carne,
             peso: chan.weight
           });
         }

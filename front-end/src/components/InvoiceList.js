@@ -6,8 +6,7 @@ const InvoiceList = () => {
   const [invoices, setInvoices] = useState([]); // Inicializar vacío, se carga con useEffect
   const [suppliers, setSuppliers] = useState([]); // Inicializar vacío
   const [users, setUsers] = useState([]); // Inicializar vacío
-  const [meatTypes, setMeatTypes] = useState([]); // Tipos de carne desde el backend
-  const [cutTypes, setCutTypes] = useState([]); // Tipos de corte desde el backend
+  const [meatTypes, setMeatTypes] = useState([]); // Tipos de carne desde el backend  
   const [showAddForm, setShowAddForm] = useState(false);
   const [showChannelsForm, setShowChannelsForm] = useState(false);
   const [currentInvoiceId, setCurrentInvoiceId] = useState(null);
@@ -31,8 +30,7 @@ const InvoiceList = () => {
     weight: '',
     type: '',
     origin: '',
-    id_tipo_carne: '',
-    id_tipo_corte: ''
+    id_tipo_carne: ''
   });
 
   const [editingChannel, setEditingChannel] = useState({
@@ -43,8 +41,7 @@ const InvoiceList = () => {
       weight: '',
       type: '',
       origin: '',
-    id_tipo_carne: '',
-    id_tipo_corte: ''
+      id_tipo_carne: ''
     }
   });
 
@@ -65,12 +62,11 @@ const InvoiceList = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [invRes, supRes, userRes, typeRes, cutRes] = await Promise.all([
+       const [invRes, supRes, userRes, typeRes] = await Promise.all([
           api.get('/facturas'),
           api.get('/proveedores'),
           api.get('/usuarios'),
-          api.get('/tipo_carne'),
-          api.get('/tipos_corte')
+           api.get('/tipo_carne')
         ]);
 
         const invoicesWithChannels = await Promise.all(
@@ -104,15 +100,11 @@ const InvoiceList = () => {
           id: p.id_tipo_carne,
           name: p.nombre
         }));
-        const mappedCutTypes = (cutRes.data || []).map(c => ({
-          id: c.id_tipo_corte,
-          name: c.nombre_corte
-        }));
+        
         setInvoices(invoicesWithChannels);
         setSuppliers(mappedSuppliers);
         setUsers(mappedUsers);
-        setMeatTypes(mappedMeatTypes);
-        setCutTypes(mappedCutTypes);
+        setMeatTypes(mappedMeatTypes);        
       } catch (error) {
         console.error('Error loading initial data for InvoiceList:', error);
       }
@@ -148,8 +140,8 @@ const InvoiceList = () => {
   };
 
   const handleAddTemporaryChannel = () => {
-    if (!newChannel.code || !newChannel.weight || !newChannel.id_tipo_carne || !newChannel.id_tipo_corte) {
-      alert('Por favor, completa los campos de Código, Peso, Tipo de carne y Corte del canal.');
+    if (!newChannel.code || !newChannel.weight || !newChannel.id_tipo_carne) {
+      alert('Por favor, completa los campos de Código, Peso y Tipo de carne del canal.');
       return;
     }
 
@@ -157,13 +149,12 @@ const InvoiceList = () => {
     const channelToAdd = {
       id,
       ...newChannel,
-      type: getMeatTypeNameById(newChannel.id_tipo_carne),
-      cut: getCutTypeNameById(newChannel.id_tipo_corte),
+      type: getMeatTypeNameById(newChannel.id_tipo_carne),      
       weight: parseFloat(newChannel.weight),
     };
 
     setTempChannels([...tempChannels, channelToAdd]);
-    setNewChannel({ code: '', weight: '', type: '', origin: '', id_tipo_carne: '', id_tipo_corte: '' });
+    setNewChannel({ code: '', weight: '', type: '', origin: '', id_tipo_carne: '' });
   };
 
   const handleDeleteTemporaryChannel = (id) => {
@@ -181,8 +172,7 @@ const InvoiceList = () => {
       channels: tempChannels.map(channel => ({ // Mapear canales temporales a formato final
         code: channel.code,
         weight: channel.weight,
-        id_tipo_carne: channel.id_tipo_carne,
-        id_tipo_corte: channel.id_tipo_corte,
+        id_tipo_carne: channel.id_tipo_carne,        
         origin: channel.origin,
       })),
     };
@@ -234,8 +224,7 @@ const InvoiceList = () => {
             id: ch.id,
             code: ch.code,
             weight: ch.weight,
-            id_tipo_carne: ch.id_tipo_carne,
-            id_tipo_corte: ch.id_tipo_corte,
+            id_tipo_carne: ch.id_tipo_carne,            
             origin: ch.origin
           }))
         };
@@ -293,19 +282,9 @@ const InvoiceList = () => {
     return mt ? mt.name : '';
   };
 
-  const getCutTypeNameById = (id) => {
-    const ct = cutTypes.find(c => String(c.id) === String(id));
-    return ct ? ct.name : '';
-  };
-
   const getMeatTypeIdByName = (name) => {
     const mt = meatTypes.find(t => t.name === name);
     return mt ? mt.id : '';
-  };
-
-  const getCutTypeIdByName = (name) => {
-    const ct = cutTypes.find(c => c.name === name);
-    return ct ? ct.id : '';
   };
 
   const getChannelsSummary = (channels) => {
@@ -328,8 +307,7 @@ const InvoiceList = () => {
       channelId: channel.id,
       data: {
         ...channel,
-        id_tipo_carne: getMeatTypeIdByName(channel.type),
-        id_tipo_corte: getCutTypeIdByName(channel.cut)
+        id_tipo_carne: getMeatTypeIdByName(channel.type)
       }
     });
   };
@@ -337,7 +315,7 @@ const InvoiceList = () => {
   const saveChannelEdit = async () => { // Ahora es asíncrona
     const { invoiceId, channelId, data } = editingChannel;
 
-    if (!data.code || !data.weight || !data.id_tipo_carne || !data.id_tipo_corte) {
+    if (!data.code || !data.weight || !data.id_tipo_carne) {
       alert('Por favor complete todos los campos del canal');
       return;
     }
@@ -350,8 +328,7 @@ const InvoiceList = () => {
        channel.id === channelId ? {
           ...data,
           id: channelId,
-          type: getMeatTypeNameById(data.id_tipo_carne),
-          cut: getCutTypeNameById(data.id_tipo_corte)
+          type: getMeatTypeNameById(data.id_tipo_carne)
         } : channel
       );
       const payload = {
@@ -361,7 +338,6 @@ const InvoiceList = () => {
           code: ch.code,
           weight: ch.weight,
           id_tipo_carne: ch.id_tipo_carne,
-          id_tipo_corte: ch.id_tipo_corte,
           origin: ch.origin
         }))
       };
@@ -380,7 +356,7 @@ const InvoiceList = () => {
     setEditingChannel({
       invoiceId: null,
       channelId: null,
-       data: { code: '', weight: '', type: '', origin: '', id_tipo_carne: '', id_tipo_corte: '' }
+     data: { code: '', weight: '', type: '', origin: '', id_tipo_carne: '' }
     });
   };
 
@@ -541,23 +517,6 @@ const InvoiceList = () => {
             </select>
           </div>
           <div className="mt-3">
-            <label htmlFor="id_tipo_corte" className="block text-sm font-medium text-gray-700">Tipo de Corte</label>
-            <select
-              id="id_tipo_corte"
-              name="id_tipo_corte"
-              value={newChannel.id_tipo_corte}
-              onChange={handleChannelInputChange}
-              className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
-            >
-             <option value="">Selecciona un Corte</option>
-               {cutTypes.map(cut => (
-                <option key={cut.id} value={cut.id}>
-                  {cut.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="mt-3">
             <label htmlFor="weight" className="block text-sm font-medium text-gray-700">Peso (kg)</label>
             <input
               type="number"
@@ -584,8 +543,7 @@ const InvoiceList = () => {
                   <div key={channel.id} className="border border-gray-200 rounded-lg p-3 flex justify-between items-center">
                     <div>
                       <p className="text-gray-700 font-medium">Código: <span className="font-normal">{channel.code}</span></p>
-                      <p className="text-gray-700 font-medium">Tipo: <span className="font-normal">{channel.type}</span></p>
-                       <p className="text-gray-700 font-medium">Corte: <span className="font-normal">{channel.cut}</span></p>
+                      <p className="text-gray-700 font-medium">Tipo: <span className="font-normal">{channel.type}</span></p>                       
                       <p className="text-gray-700 font-medium">Peso: <span className="font-normal">{channel.weight} kg</span></p>
                     </div>
                     <button
@@ -822,24 +780,6 @@ const InvoiceList = () => {
                                       ))}
                                     </select>
                                   </div>
- <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Corte</label>
-                                    <select
-                                      value={editingChannel.data.id_tipo_corte}
-                                      onChange={(e) => setEditingChannel(prev => ({
-                                        ...prev,
-                                        data: { ...prev.data, id_tipo_corte: e.target.value }
-                                      }))}
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                      <option value="">Selecciona un Corte</option>
-                                     {cutTypes.map(cut => (
-                                        <option key={cut.id} value={cut.id}>
-                                          {cut.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
                                     <input
@@ -871,8 +811,7 @@ const InvoiceList = () => {
                               ) : (
                                 <>
                                   <div className="space-y-1">
-                                    <p className="text-gray-800"><span className="font-medium">Código:</span> {channel.code}</p>
-                                    <p className="text-gray-800"><span className="font-medium">Corte:</span> {channel.cut}</p>
+                                    <p className="text-gray-800"><span className="font-medium">Código:</span> {channel.code}</p>                                    
                                     <p className="text-gray-800"><span className="font-medium">Peso:</span> {channel.weight} kg</p>
                                   </div>
 

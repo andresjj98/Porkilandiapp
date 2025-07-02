@@ -4,7 +4,7 @@ const db = require('../config/db');
 // Devuelve todos los canales
 async function getAllCanales() {
   const [rows] = await db.query(
-      `SELECT id_canal, codigo_canal, id_factura, id_tipo_carne, id_tipo_corte, peso
+       `SELECT id_canal, codigo_canal, id_factura, id_tipo_carne,  peso
      FROM canales`
   );
   return rows;
@@ -13,7 +13,7 @@ async function getAllCanales() {
 // Devuelve canales filtrados por ID de factura
 async function getCanalesByFactura(id_factura) {
   const [rows] = await db.query(
-    `SELECT id_canal, codigo_canal, id_factura, id_tipo_carne, id_tipo_corte, peso
+     `SELECT id_canal, codigo_canal, id_factura, id_tipo_carne,  peso
      FROM canales
      WHERE id_factura = ?`,
     [id_factura]
@@ -24,7 +24,7 @@ async function getCanalesByFactura(id_factura) {
 // Devuelve un canal por su ID
 async function getCanalById(id) {
   const [rows] = await db.query(
-     `SELECT id_canal, codigo_canal, id_factura, id_tipo_carne, id_tipo_corte, peso
+      `SELECT id_canal, codigo_canal, id_factura, id_tipo_carne,  peso
      FROM canales
      WHERE id_canal = ?`,
     [id]
@@ -35,24 +35,23 @@ async function getCanalById(id) {
 
 
 // Crea un nuevo canal (carcasa)
-async function createCanal({ codigo_canal, id_factura, id_tipo_carne, id_tipo_corte, peso }) {
+async function createCanal({ codigo_canal, id_factura, id_tipo_carne, peso }) {
   const [result] = await db.query(
-     `INSERT INTO canales (codigo_canal, id_factura, id_tipo_carne, id_tipo_corte, peso)
-     VALUES (?, ?, ?, ?, ?)`,
-    [codigo_canal, id_factura, id_tipo_carne, id_tipo_corte, peso]
+     `INSERT INTO canales (codigo_canal, id_factura, id_tipo_carne, peso)
+     VALUES (?, ?, ?, ?)`,
+    [codigo_canal, id_factura, id_tipo_carne, peso]
   );
   return { id: result.insertId };
 }
-async function updateCanal({ id, codigo_canal, id_factura, id_tipo_carne, id_tipo_corte, peso }) {
+async function updateCanal({ id, codigo_canal, id_factura, id_tipo_carne, peso }) {
   await db.query(
     `UPDATE canales
        SET codigo_canal = ?,
            id_factura   = ?,
-           id_tipo_carne  = ?,
-           id_tipo_corte = ?,
+           id_tipo_carne  = ?,        
            peso         = ?
      WHERE id_canal = ?`,
-    [codigo_canal, id_factura, id_tipo_carne, id_tipo_corte, peso, id]
+    [codigo_canal, id_factura, id_tipo_carne, peso, id]
   );
 }
 
