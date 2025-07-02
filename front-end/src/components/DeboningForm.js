@@ -35,11 +35,11 @@ const DeboningForm = () => {
 
 const loadData = async () => {
     try {
-      const [factRes, desRes, detRes, tipoRes, userRes] = await Promise.allSettled([
+      const [factRes, desRes, detRes, prodRes, userRes] = await Promise.allSettled([
         api.get('/facturas'),
         api.get('/despostes'),
         api.get('/detalles_corte'),
-        api.get('/tipos_corte'),
+        api.get('/productos'),
         api.get('/usuarios')
       ]);
 
@@ -56,12 +56,14 @@ const loadData = async () => {
       const cutTypesByMeat = {};
       const cutNameToId = {};
       const cutIdToName = {};
-      const tipoData = tipoRes.status === 'fulfilled' ? tipoRes.value.data : [];
-      (tipoData || []).forEach(t => {
-        if (!cutTypesByMeat[t.producto]) cutTypesByMeat[t.producto] = [];
-        cutTypesByMeat[t.producto].push(t.nombre_corte);
-        cutNameToId[t.nombre_corte] = t.id_tipo_corte;
-        cutIdToName[t.id_tipo_corte] = t.nombre_corte;
+      const prodData = prodRes.status === 'fulfilled' ? prodRes.value.data : [];
+      (prodData || []).forEach(p => {
+        if (!cutTypesByMeat[p.tipo_carne]) cutTypesByMeat[p.tipo_carne] = [];
+        if (!cutTypesByMeat[p.tipo_carne].includes(p.tipo_corte)) {
+          cutTypesByMeat[p.tipo_carne].push(p.tipo_corte);
+        }
+        cutNameToId[p.tipo_corte] = p.id_tipo_corte;
+        cutIdToName[p.id_tipo_corte] = p.tipo_corte;
       });
 
       const desposteMap = {};
@@ -253,49 +255,39 @@ const loadData = async () => {
     return Object.entries(summary);
   };
 
-  const getTotalWeightByMeatType = (cutsList) => {
+  const getTotalWeightByCarcass = (invoiceId, cutsList) => {
     const summary = cutsList.reduce((acc, cut) => {
-      const invoice = invoices.find(inv => inv.id === cut.invoiceId);
-      const channel = invoice ? invoice.channels.find(ch => ch.code === cut.carcassCode) : null;
-      const meatType = channel ? channel.type : 'Desconocido';
-
-      acc[meatType] = (acc[meatType] || 0) + cut.weight;
+      if (cut.invoiceId === invoiceId) {
+        acc[cut.carcassCode] = (acc[cut.carcassCode] || 0) + cut.weight;
+      }
       return acc;
     }, {});
     return Object.entries(summary);
   };
 
-  const getMermaByMeatType = (invoiceId, cutsList) => {
+   const getMermaByCarcass = (invoiceId, cutsList) => {
     const invoice = invoices.find(inv => inv.id === invoiceId);
     if (!invoice) return {};
 
-    const totalChannelWeight = invoice.channels.reduce((acc, channel) => {
-      acc[channel.type] = (acc[channel.type] || 0) + channel.weight;
+    const channelWeights = invoice.channels.reduce((acc, channel) => {
+      acc[channel.code] = channel.weight;
       return acc;
     }, {});
 
-    const totalCutWeight = cutsList.reduce((acc, cut) => {
-      const channel = invoice.channels.find(ch => ch.code === cut.carcassCode);
-      if (channel) {
-         acc[channel.type] = (acc[channel.type] || 0) + cut.weight;
+    const cutWeights = cutsList.reduce((acc, cut) => {
+      if (cut.invoiceId === invoiceId) {
+        acc[cut.carcassCode] = (acc[cut.carcassCode] || 0) + cut.weight;
       }
       return acc;
     }, {});
 
     const merma = {};
-    Object.keys(totalChannelWeight).forEach(meatType => {
-      const channelWeight = totalChannelWeight[meatType] || 0;
-      const cutWeight = totalCutWeight[meatType] || 0;
-      merma[meatType] = channelWeight - cutWeight;
+    Object.keys(channelWeights).forEach(code => {
+      const channelWeight = channelWeights[code] || 0;
+      const cutWeight = cutWeights[code] || 0;
+      merma[code] = channelWeight - cutWeight;
     });
-
-     Object.keys(totalCutWeight).forEach(meatType => {
-        if (!merma.hasOwnProperty(meatType)) {
-             merma[meatType] = -(totalCutWeight[meatType] || 0);
-        }
-     });
-
-
+    
     return Object.entries(merma);
   };
 
@@ -580,13 +572,13 @@ const loadData = async () => {
                       <p key={type} className="text-gray-700">{type}: {totalWeight.toFixed(2)} kg</p>
                     ))}
 
-                    <h5 className="text-md font-semibold text-gray-800 mt-4 mb-2">Total Kilos Despostado y Merma por Tipo de Carne</h5>
-                    {getTotalWeightByMeatType(cutsList).map(([meatType, totalWeight]) => (
-                      <p key={meatType} className="text-gray-700">{meatType} (Despostado): {totalWeight.toFixed(2)} kg</p>
+                    <h5 className="text-md font-semibold text-gray-800 mt-4 mb-2">Total Kilos Despostado y Merma por Canal</h5>
+                    {getTotalWeightByCarcass(invoiceId, cutsList).map(([code, totalWeight]) => (
+                      <p key={code} className="text-gray-700">{code} (Despostado): {totalWeight.toFixed(2)} kg</p>
                     ))}
-                     {invoiceId && getMermaByMeatType(invoiceId, cutsList).map(([meatType, mermaWeight]) => (
-                      <p key={`${meatType}-merma`} className="text-gray-700">
-                        {meatType} (Merma): <span className={`${mermaWeight >= 0 ? 'text-green-600' : 'text-red-600'}`}>{mermaWeight.toFixed(2)} kg</span>
+                     {invoiceId && getMermaByCarcass(invoiceId, cutsList).map(([code, mermaWeight]) => (
+                      <p key={`${code}-merma`} className="text-gray-700">
+                        {code} (Merma): <span className={`${mermaWeight >= 0 ? 'text-green-600' : 'text-red-600'}`}>{mermaWeight.toFixed(2)} kg</span>
                       </p>
                     ))}
                   </div>

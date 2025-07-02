@@ -109,42 +109,36 @@ const DeboningList = () => {
     return Object.entries(summary);
   };
 
-  const getTotalWeightByMeatType = (cutsList) => {
+  const getTotalWeightByCarcass = (invoiceId, cutsList) => {
     const summary = cutsList.reduce((acc, cut) => {
-      const invoice = invoices.find(inv => inv.id === cut.invoiceId);
-      const channel = invoice ? invoice.channels.find(ch => ch.code === cut.carcassCode) : null;
-      const meatType = channel ? channel.type : 'Desconocido';
-
-      acc[meatType] = (acc[meatType] || 0) + cut.weight;
+      if (cut.invoiceId === invoiceId) {
+        acc[cut.carcassCode] = (acc[cut.carcassCode] || 0) + cut.weight;
+      }
       return acc;
     }, {});
     return Object.entries(summary);
   };
 
-  const getMermaByMeatType = (invoiceId, cutsList) => { // Nueva función para calcular la merma
+  const getMermaByCarcass = (invoiceId, cutsList) => {
     const invoice = invoices.find(inv => inv.id === invoiceId);
     if (!invoice) return {};
 
-    // Total de peso de canales por tipo de carne en la factura
-    const totalChannelWeight = invoice.channels.reduce((acc, channel) => {
-      acc[channel.type] = (acc[channel.type] || 0) + channel.weight;
+    const channelWeights = invoice.channels.reduce((acc, channel) => {
+      acc[channel.code] = channel.weight;
       return acc;
     }, {});
 
-    // Total de peso despostado por tipo de carne de los cortes asociados a esta factura
-    const totalCutWeight = cutsList.reduce((acc, cut) => {
-      const channel = invoice.channels.find(ch => ch.code === cut.carcassCode);
-      const meatType = channel ? channel.type : 'Desconocido';
-      acc[meatType] = (acc[meatType] || 0) + cut.weight;
+    const cutWeights = cutsList.reduce((acc, cut) => {
+      if (cut.invoiceId === invoiceId) {
+        acc[cut.carcassCode] = (acc[cut.carcassCode] || 0) + cut.weight;
+      }
       return acc;
     }, {});
 
-    // Calcular la merma por tipo de carne
-    const merma = {};
-    Object.keys(totalChannelWeight).forEach(meatType => {
-      const channelWeight = totalChannelWeight[meatType] || 0;
-      const cutWeight = totalCutWeight[meatType] || 0;
-      merma[meatType] = channelWeight - cutWeight;
+    Object.keys(channelWeights).forEach(code => {
+      const channelWeight = channelWeights[code] || 0;
+      const cutWeight = cutWeights[code] || 0;
+      merma[code] = channelWeight - cutWeight;
     });
 
     return Object.entries(merma);
@@ -196,13 +190,13 @@ const DeboningList = () => {
                     <p key={type} className="text-gray-700">{type}: {totalWeight.toFixed(2)} kg</p>
                   ))}
 
-                  <h5 className="text-md font-semibold text-gray-800 mt-4 mb-2">Total Kilos Despostado y Merma por Tipo de Carne</h5> {/* Título modificado */}
-                  {getTotalWeightByMeatType(cutsList).map(([meatType, totalWeight]) => (
-                    <p key={meatType} className="text-gray-700">{meatType} (Despostado): {totalWeight.toFixed(2)} kg</p>
+                  <h5 className="text-md font-semibold text-gray-800 mt-4 mb-2">Total Kilos Despostado y Merma por Canal</h5>
+                  {getTotalWeightByCarcass(invoiceId, cutsList).map(([code, totalWeight]) => (
+                    <p key={code} className="text-gray-700">{code} (Despostado): {totalWeight.toFixed(2)} kg</p>
                   ))}
-                   {invoiceId && getMermaByMeatType(invoiceId, cutsList).map(([meatType, mermaWeight]) => ( // Mostrar merma
-                    <p key={`${meatType}-merma`} className="text-gray-700">
-                      {meatType} (Merma): <span className={`${mermaWeight >= 0 ? 'text-green-600' : 'text-red-600'}`}>{mermaWeight.toFixed(2)} kg</span>
+                   {invoiceId && getMermaByCarcass(invoiceId, cutsList).map(([code, mermaWeight]) => (
+                    <p key={`${code}-merma`} className="text-gray-700">
+                      {code} (Merma): <span className={`${mermaWeight >= 0 ? 'text-green-600' : 'text-red-600'}`}>{mermaWeight.toFixed(2)} kg</span>
                     </p>
                   ))}
                 </div>
