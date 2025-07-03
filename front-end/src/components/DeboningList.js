@@ -143,7 +143,33 @@ const DeboningList = () => {
 
     return Object.entries(merma);
   };
+const getMermaByMeatType = (invoiceId, cutsList) => {
+    const invoice = invoices.find(inv => inv.id === invoiceId);
+    if (!invoice) return [];
 
+    const channelWeights = invoice.channels.reduce((acc, channel) => {
+      acc[channel.type] = (acc[channel.type] || 0) + channel.weight;
+      return acc;
+    }, {});
+
+    const cutWeights = cutsList.reduce((acc, cut) => {
+      if (cut.invoiceId === invoiceId) {
+        const channel = invoice.channels.find(ch => ch.code === cut.carcassCode);
+        const type = channel ? channel.type : 'Desconocido';
+        acc[type] = (acc[type] || 0) + cut.weight;
+      }
+      return acc;
+    }, {});
+
+    const merma = {};
+    Object.keys(channelWeights).forEach(type => {
+      const channelWeight = channelWeights[type] || 0;
+      const cutWeight = cutWeights[type] || 0;
+      merma[type] = channelWeight - cutWeight;
+    });
+
+    return Object.entries(merma);
+  };
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -195,14 +221,21 @@ const DeboningList = () => {
                     <p key={code} className="text-gray-700">{code} (Despostado): {totalWeight.toFixed(2)} kg</p>
                   ))}
                    {invoiceId && getMermaByCarcass(invoiceId, cutsList).map(([code, mermaWeight]) => (
-                    <p key={`${code}-merma`} className="text-gray-700">
-                      {code} (Merma): <span className={`${mermaWeight >= 0 ? 'text-green-600' : 'text-red-600'}`}>{mermaWeight.toFixed(2)} kg</span>
-                    </p>
-                  ))}
+                      <p key={`${code}-merma`} className="text-gray-700">
+                        {code} (Merma): <span className={`${mermaWeight >= 0 ? 'text-green-600' : 'text-red-600'}`}>{mermaWeight.toFixed(2)} kg</span>
+                      </p>
+                    ))}
+
+                    <h5 className="text-md font-semibold text-gray-800 mt-4 mb-2">Merma Total por Tipo de Carne</h5>
+                    {invoiceId && getMermaByMeatType(invoiceId, cutsList).map(([type, mermaWeight]) => (
+                      <p key={`${type}-total-merma`} className="text-gray-700">
+                        {type}: <span className={`${mermaWeight >= 0 ? 'text-green-600' : 'text-red-600'}`}>{mermaWeight.toFixed(2)} kg</span>
+                      </p>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
       ) : (
         <p className="text-gray-600">No hay despostes registrados que coincidan con la búsqueda.</p>
