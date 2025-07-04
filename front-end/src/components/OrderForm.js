@@ -12,6 +12,8 @@ const OrderForm = () => {
   const [cutIdToName, setCutIdToName] = useState({});
   const [cutIdToMeatId, setCutIdToMeatId] = useState({});
   const [meatTypeIdToName, setMeatTypeIdToName] = useState({});
+  const [productIdMap, setProductIdMap] = useState({});
+  const [productInfoById, setProductInfoById] = useState({});
   
   const [cuts, setCuts] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -81,6 +83,8 @@ const OrderForm = () => {
         const nameToIdByMeat = {};
         const idToName = {};
         const idToMeat = {};
+        const productMap = {};
+        const productInfo = {};
         (prodRes.data || []).forEach(p => {
           if (!cutTypesMap[p.tipo_carne]) cutTypesMap[p.tipo_carne] = [];
           if (!cutTypesMap[p.tipo_carne].includes(p.tipo_corte)) {
@@ -90,6 +94,9 @@ const OrderForm = () => {
           nameToIdByMeat[p.tipo_carne][p.tipo_corte] = p.id_tipo_corte;
           idToName[p.id_tipo_corte] = p.tipo_corte;
           idToMeat[p.id_tipo_corte] = p.id_tipo_carne;
+          if (!productMap[p.tipo_carne]) productMap[p.tipo_carne] = {};
+          productMap[p.tipo_carne][p.tipo_corte] = p.id_producto;
+          productInfo[p.id_producto] = { meat: p.tipo_carne, cut: p.tipo_corte };
         });
 
         const invoicesList = factRes.data || [];
@@ -109,12 +116,12 @@ const OrderForm = () => {
         const ordersData = await Promise.all(
           (ordRes.data || []).map(async ord => {
             const { data: detalles } = await api.get(`/detalle_orden?orden=${ord.id_orden}`);
-             const items = (detalles || []).map(d => {
-              const meatId = idToMeat[d.id_tipo_corte];
+            const items = (detalles || []).map(d => {
+              const info = productInfoById[d.id_producto] || {};
               return {
                 id: d.id_detalle,
-                meatType: typeIdToName[meatId] || 'Desconocido',
-                cutType: idToName[d.id_tipo_corte] || 'N/A',
+                meatType: info.meat || 'Desconocido',
+                cutType: info.cut || 'N/A',
                 quantity: d.cantidad,
                 weight: parseFloat(d.peso_total)
               };
@@ -143,6 +150,8 @@ const OrderForm = () => {
         setCutIdToName(idToName);
         setCutIdToMeatId(idToMeat);
         setCutTypes(cutTypesMap);
+        setProductIdMap(productMap);
+        setProductInfoById(productInfo);
         setInvoices(invoicesList);
         setCuts(Object.values(cutsMap));
         setOrders(ordersData);
@@ -179,6 +188,8 @@ const OrderForm = () => {
         const nameToId = {};
         const idToNameMap = {};
         const idToMeatMap = {};
+        const productMap = {};
+        const infoMap = {};
         (data || []).forEach(p => {
           if (!map[p.tipo_carne]) map[p.tipo_carne] = [];
           if (!map[p.tipo_carne].includes(p.tipo_corte)) {
@@ -188,11 +199,16 @@ const OrderForm = () => {
           nameToId[p.tipo_carne][p.tipo_corte] = p.id_tipo_corte;
           idToNameMap[p.id_tipo_corte] = p.tipo_corte;
           idToMeatMap[p.id_tipo_corte] = p.id_tipo_carne;
+           if (!productMap[p.tipo_carne]) productMap[p.tipo_carne] = {};
+          productMap[p.tipo_carne][p.tipo_corte] = p.id_producto;
+          infoMap[p.id_producto] = { meat: p.tipo_carne, cut: p.tipo_corte };
         });
         setCutTypes(map);
         setCutNameToIdByMeat(nameToId);
         setCutIdToName(idToNameMap);
         setCutIdToMeatId(idToMeatMap);
+        setProductIdMap(productMap);
+        setProductInfoById(infoMap);
       } catch (err) {
         console.error('Error refreshing cut types:', err);
       }
@@ -265,10 +281,10 @@ const OrderForm = () => {
       const newId = data?.id;
 
       await Promise.all(newOrder.items.map(item => {
-        const cutId = cutNameToIdByMeat[item.meatType]?.[item.cutType];
+         const productId = productIdMap[item.meatType]?.[item.cutType];
         return api.post('/detalle_orden', {
           id_orden: newId,
-           id_tipo_corte: cutId,
+          id_producto: productId,
           cantidad: item.quantity || 0,
           peso_total: item.weight || 0
         });

@@ -23,23 +23,24 @@ const OrderList = () => {
           typeIdToName[p.id_tipo_carne] = p.nombre;
         });
 
-         const cutIdToName = {};
-        const cutIdToMeat = {};
+        const productInfo = {};
         (prodRes.data || []).forEach(p => {
-          cutIdToName[p.id_tipo_corte] = p.tipo_corte;
-          cutIdToMeat[p.id_tipo_corte] = p.id_tipo_carne;
+          productInfo[p.id_producto] = { cut: p.tipo_corte, meatId: p.id_tipo_carne };
         });
 
         const ordersWithDetails = await Promise.all(
           (ordRes.data || []).map(async ord => {
             const { data: detalles } = await api.get(`/detalle_orden?orden=${ord.id_orden}`);
-            const items = (detalles || []).map(d => ({
-              id: d.id_detalle,
-              meatType: typeIdToName[cutIdToMeat[d.id_tipo_corte]] || 'Desconocido',
-              cutType: cutIdToName[d.id_tipo_corte] || 'N/A',
-              quantity: d.cantidad,
-              weight: parseFloat(d.peso_total)
-            }));
+            const items = (detalles || []).map(d => {
+              const info = productInfo[d.id_producto] || {};
+              return {
+                id: d.id_detalle,
+                meatType: typeIdToName[info.meatId] || 'Desconocido',
+                cutType: info.cut || 'N/A',
+                quantity: d.cantidad,
+                weight: parseFloat(d.peso_total)
+              };
+            });
             return {
               id: ord.id_orden,
               orderId: String(ord.id_orden),

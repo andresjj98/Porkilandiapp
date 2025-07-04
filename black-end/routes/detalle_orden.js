@@ -67,9 +67,9 @@ router.post(
     body('id_orden')
       .notEmpty().withMessage('El ID de orden es requerido')
       .isInt().withMessage('El ID de orden debe ser un número entero'),
-    body('id_tipo_corte')
-      .notEmpty().withMessage('El ID de tipo de corte es requerido')
-      .isInt().withMessage('El ID de tipo de corte debe ser un número entero'),
+    body('id_producto')
+      .notEmpty().withMessage('El ID de producto es requerido')
+      .isInt().withMessage('El ID de producto debe ser un número entero'),
     body('cantidad')
       .notEmpty().withMessage('La cantidad es requerida')
       .isInt({ gt: 0 }).withMessage('La cantidad debe ser un entero mayor que 0'),
@@ -80,8 +80,8 @@ router.post(
   validateRequest,
   async (req, res) => {
     try {
-     const { id_orden, id_tipo_corte, cantidad, peso_total } = req.body;
-      const { id } = await createDetalleOrden({ id_orden, id_tipo_corte, cantidad, peso_total });
+      const { id_orden, id_producto, cantidad, peso_total } = req.body;
+      const { id } = await createDetalleOrden({ id_orden, id_producto, cantidad, peso_total });
       res.status(201).json({ message: 'Detalle de orden creado', id });
     } catch (err) {
       console.error(err);
@@ -98,7 +98,7 @@ router.put(
   [
     param('id').isInt().withMessage('El ID de detalle debe ser un número entero'),
     body('id_orden').optional().isInt().withMessage('El ID de orden debe ser un número entero'),
-    body('id_tipo_corte').optional().isInt().withMessage('El ID de tipo de corte debe ser un número entero'),
+    body('id_producto').optional().isInt().withMessage('El ID de producto debe ser un número entero'),
     body('cantidad').optional().isInt({ gt: 0 }).withMessage('La cantidad debe ser un entero mayor que 0'),
     body('peso_total').optional().isFloat({ gt: 0 }).withMessage('El peso total debe ser un número mayor que 0')
   ],
