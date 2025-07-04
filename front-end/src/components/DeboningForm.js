@@ -270,7 +270,7 @@ const loadData = async () => {
     if (!invoice) return {};
 
     const channelWeights = invoice.channels.reduce((acc, channel) => {
-      acc[channel.code] = channel.weight;
+      acc[channel.code] = parseFloat(channel.weight);
       return acc;
     }, {});
 
@@ -295,7 +295,7 @@ const getMermaByMeatType = (invoiceId, cutsList) => {
     if (!invoice) return [];
 
     const channelWeights = invoice.channels.reduce((acc, channel) => {
-      acc[channel.type] = (acc[channel.type] || 0) + channel.weight;
+      acc[channel.type] = (acc[channel.type] || 0) + parseFloat(channel.weight);
       return acc;
     }, {});
 

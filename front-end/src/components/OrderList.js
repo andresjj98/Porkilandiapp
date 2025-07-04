@@ -11,9 +11,10 @@ const OrderList = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [ordRes, posRes, typeRes] = await Promise.all([
+         const [ordRes, posRes, prodRes, typeRes] = await Promise.all([
           api.get('/ordenes'),
           api.get('/puntos_venta'),
+          api.get('/productos'),
           api.get('/tipo_carne')
         ]);
 
@@ -22,13 +23,20 @@ const OrderList = () => {
           typeIdToName[p.id_tipo_carne] = p.nombre;
         });
 
+         const cutIdToName = {};
+        const cutIdToMeat = {};
+        (prodRes.data || []).forEach(p => {
+          cutIdToName[p.id_tipo_corte] = p.tipo_corte;
+          cutIdToMeat[p.id_tipo_corte] = p.id_tipo_carne;
+        });
+
         const ordersWithDetails = await Promise.all(
           (ordRes.data || []).map(async ord => {
             const { data: detalles } = await api.get(`/detalle_orden?orden=${ord.id_orden}`);
             const items = (detalles || []).map(d => ({
               id: d.id_detalle,
-              meatType: typeIdToName[d.id_tipo_carne] || d.id_tipo_carne,
-              cutType: 'N/A',
+              meatType: typeIdToName[cutIdToMeat[d.id_tipo_corte]] || 'Desconocido',
+              cutType: cutIdToName[d.id_tipo_corte] || 'N/A',
               quantity: d.cantidad,
               weight: parseFloat(d.peso_total)
             }));

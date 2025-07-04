@@ -8,6 +8,11 @@ const OrderForm = () => {
   const [orders, setOrders] = useState([]);
   const [posList, setPosList] = useState([]);
   const [cutTypes, setCutTypes] = useState({});
+  const [cutNameToIdByMeat, setCutNameToIdByMeat] = useState({});
+  const [cutIdToName, setCutIdToName] = useState({});
+  const [cutIdToMeatId, setCutIdToMeatId] = useState({});
+  const [meatTypeIdToName, setMeatTypeIdToName] = useState({});
+  
   const [cuts, setCuts] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [users, setUsers] = useState([]);
@@ -56,10 +61,10 @@ const OrderForm = () => {
       }
 
       try {
-        const [ordRes, carneRes, cutRes, userRes, factRes, detRes] = await Promise.all([
-          api.get('/ordenes'),          
+       const [ordRes, carneRes, prodRes, userRes, factRes, detRes] = await Promise.all([
+          api.get('/ordenes'),
           api.get('/tipo_carne'),
-          api.get('/tipos_corte'),
+          api.get('/productos'),
           api.get('/usuarios'),
           api.get('/facturas'),
           api.get('/detalles_corte')
@@ -73,9 +78,18 @@ const OrderForm = () => {
         });
 
         const cutTypesMap = {};
-        (cutRes.data || []).forEach(c => {
-          if (!cutTypesMap[c.producto]) cutTypesMap[c.producto] = [];
-          cutTypesMap[c.producto].push(c.nombre_corte);
+        const nameToIdByMeat = {};
+        const idToName = {};
+        const idToMeat = {};
+        (prodRes.data || []).forEach(p => {
+          if (!cutTypesMap[p.tipo_carne]) cutTypesMap[p.tipo_carne] = [];
+          if (!cutTypesMap[p.tipo_carne].includes(p.tipo_corte)) {
+            cutTypesMap[p.tipo_carne].push(p.tipo_corte);
+          }
+          if (!nameToIdByMeat[p.tipo_carne]) nameToIdByMeat[p.tipo_carne] = {};
+          nameToIdByMeat[p.tipo_carne][p.tipo_corte] = p.id_tipo_corte;
+          idToName[p.id_tipo_corte] = p.tipo_corte;
+          idToMeat[p.id_tipo_corte] = p.id_tipo_carne;
         });
 
         const invoicesList = factRes.data || [];
@@ -95,13 +109,16 @@ const OrderForm = () => {
         const ordersData = await Promise.all(
           (ordRes.data || []).map(async ord => {
             const { data: detalles } = await api.get(`/detalle_orden?orden=${ord.id_orden}`);
-            const items = (detalles || []).map(d => ({
-              id: d.id_detalle,
-              meatType: typeIdToName[d.id_tipo_carne] || 'Desconocido',
-              cutType: 'N/A',
-              quantity: d.cantidad,
-              weight: parseFloat(d.peso_total)
-            }));
+             const items = (detalles || []).map(d => {
+              const meatId = idToMeat[d.id_tipo_corte];
+              return {
+                id: d.id_detalle,
+                meatType: typeIdToName[meatId] || 'Desconocido',
+                cutType: idToName[d.id_tipo_corte] || 'N/A',
+                quantity: d.cantidad,
+                weight: parseFloat(d.peso_total)
+              };
+            });
             return {
               id: ord.id_orden,
               orderId: String(ord.id_orden),
@@ -121,6 +138,10 @@ const OrderForm = () => {
         }));
 
         setMeatTypeNameToId(typeNameToId);
+        setMeatTypeIdToName(typeIdToName);
+        setCutNameToIdByMeat(nameToIdByMeat);
+        setCutIdToName(idToName);
+        setCutIdToMeatId(idToMeat);
         setCutTypes(cutTypesMap);
         setInvoices(invoicesList);
         setCuts(Object.values(cutsMap));
@@ -153,13 +174,25 @@ const OrderForm = () => {
   useEffect(() => {
    const loadLatestCuts = async () => {
       try {
-        const { data } = await api.get('/tipos_corte');
+       const { data } = await api.get('/productos');
         const map = {};
-        (data || []).forEach(t => {
-          if (!map[t.producto]) map[t.producto] = [];
-          map[t.producto].push(t.nombre_corte);
+        const nameToId = {};
+        const idToNameMap = {};
+        const idToMeatMap = {};
+        (data || []).forEach(p => {
+          if (!map[p.tipo_carne]) map[p.tipo_carne] = [];
+          if (!map[p.tipo_carne].includes(p.tipo_corte)) {
+            map[p.tipo_carne].push(p.tipo_corte);
+          }
+          if (!nameToId[p.tipo_carne]) nameToId[p.tipo_carne] = {};
+          nameToId[p.tipo_carne][p.tipo_corte] = p.id_tipo_corte;
+          idToNameMap[p.id_tipo_corte] = p.tipo_corte;
+          idToMeatMap[p.id_tipo_corte] = p.id_tipo_carne;
         });
         setCutTypes(map);
+        setCutNameToIdByMeat(nameToId);
+        setCutIdToName(idToNameMap);
+        setCutIdToMeatId(idToMeatMap);
       } catch (err) {
         console.error('Error refreshing cut types:', err);
       }
@@ -232,10 +265,10 @@ const OrderForm = () => {
       const newId = data?.id;
 
       await Promise.all(newOrder.items.map(item => {
-        const typeId = meatTypeNameToId[item.meatType];
+        const cutId = cutNameToIdByMeat[item.meatType]?.[item.cutType];
         return api.post('/detalle_orden', {
           id_orden: newId,
-          id_tipo_carne: typeId,
+           id_tipo_corte: cutId,
           cantidad: item.quantity || 0,
           peso_total: item.weight || 0
         });
