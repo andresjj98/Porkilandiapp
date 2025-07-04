@@ -12,10 +12,7 @@ const {
   deleteOrden
 } = require('../models/ordenModel');
 const { getDetalleByOrden } = require('../models/detalleOrdenModel');
-const {
-  crearReserva,
-  eliminarReservasPorOrden
-} = require('../models/inventarioReservaModel');
+
 const { consumirInventarioLIFO } = require('../models/inventarioModel');
 
 const router = express.Router();
@@ -61,6 +58,8 @@ router.post(
   verifyToken,
   authorizeRoles('admin','operario'),
   [
+    body('codigo_orden')
+      .notEmpty().withMessage('El código de orden es requerido'),
     body('fecha_orden')
       .notEmpty().withMessage('La fecha de orden es requerida')
       .isISO8601().withMessage('Formato de fecha inválido (YYYY-MM-DD)'),
@@ -78,8 +77,8 @@ router.post(
   validateRequest,
   async (req, res) => {
     try {
-      const { fecha_orden, id_usuario, id_pos, estado } = req.body;
-      const { id } = await createOrden({ fecha_orden, id_usuario, id_pos, estado });
+      const { codigo_orden, fecha_orden, id_usuario, id_pos, estado } = req.body;
+      const { id } = await createOrden({ codigo_orden, fecha_orden, id_usuario, id_pos, estado });
       res.status(201).json({ message: 'Orden creada', id });
     } catch (err) {
       console.error(err);
@@ -95,6 +94,8 @@ router.put(
   authorizeRoles('admin','operario'),
   [
     param('id').isInt().withMessage('El ID de orden debe ser un número entero'),
+    body('codigo_orden')
+      .optional(),
     body('fecha_orden')
       .optional()
       .isISO8601().withMessage('Formato de fecha inválido (YYYY-MM-DD)'),
@@ -120,21 +121,7 @@ router.put(
           await consumirInventarioLIFO(det.id_producto, det.cantidad, det.peso_total);
         }
       }
-      if (req.body.estado) {
-        if (req.body.estado === 'enviada' && prev && prev.estado !== 'enviada') {
-          const detalles = await getDetalleByOrden(req.params.id);
-          for (const det of detalles) {
-            await crearReserva({
-              id_orden: req.params.id,
-              id_producto: det.id_producto,
-              cantidad: det.cantidad
-            });
-          }
-        } else if (prev && prev.estado === 'enviada' && req.body.estado !== 'enviada') {
-          await eliminarReservasPorOrden(req.params.id);
-        }
-      }
-
+      
       res.json({ message: 'Orden actualizada' });
     } catch (err) {
       console.error(err);
@@ -151,8 +138,7 @@ router.delete(
   param('id').isInt().withMessage('El ID de orden debe ser un número entero'),
   validateRequest,
   async (req, res) => {
-    try {
-      await eliminarReservasPorOrden(req.params.id);
+    try {      
       await deleteOrden(req.params.id);
       res.json({ message: 'Orden eliminada' });
     } catch (err) {

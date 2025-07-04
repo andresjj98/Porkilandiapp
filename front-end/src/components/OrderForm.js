@@ -21,7 +21,7 @@ const OrderForm = () => {
   const [meatTypeNameToId, setMeatTypeNameToId] = useState({});
 
   const [newOrder, setNewOrder] = useState({
-    orderId: '',
+    codigoOrden: '',
     date: '',
     posId: '',
     operatorId: '',
@@ -117,7 +117,7 @@ const OrderForm = () => {
           (ordRes.data || []).map(async ord => {
             const { data: detalles } = await api.get(`/detalle_orden?orden=${ord.id_orden}`);
             const items = (detalles || []).map(d => {
-              const info = productInfoById[d.id_producto] || {};
+              const info = productInfo[d.id_producto] || {};
               return {
                 id: d.id_detalle,
                 meatType: info.meat || 'Desconocido',
@@ -128,7 +128,7 @@ const OrderForm = () => {
             });
             return {
               id: ord.id_orden,
-              orderId: String(ord.id_orden),
+              orderCode: ord.codigo_orden,
               date: ord.fecha_orden,
               posId: ord.id_pos,
               operatorId: ord.id_usuario,
@@ -272,6 +272,7 @@ const OrderForm = () => {
 
     try {
           const orderPayload = {
+        codigo_orden: newOrder.codigoOrden,
         fecha_orden: newOrder.date,
         id_usuario: newOrder.operatorId,
         id_pos: newOrder.posId,
@@ -290,9 +291,9 @@ const OrderForm = () => {
         });
       }));
 
-      setOrders(prev => [...prev, { id: newId, orderId: String(newId), date: newOrder.date, posId: newOrder.posId, operatorId: newOrder.operatorId, status: newOrder.status, items: newOrder.items }]);
+      setOrders(prev => [...prev, { id: newId, orderCode: newOrder.codigoOrden, date: newOrder.date, posId: newOrder.posId, operatorId: newOrder.operatorId, status: newOrder.status, items: newOrder.items }]);
       setNewOrder({
-        orderId: '',
+        codigoOrden: '',
         date: '',
         posId: '',
         operatorId: '',
@@ -348,6 +349,7 @@ const OrderForm = () => {
 
       const updatedOrder = { ...orderToUpdate, status: editedOrderStatus };
       await api.put(`/ordenes/${orderId}`, {
+        codigo_orden: updatedOrder.orderCode,
         fecha_orden: updatedOrder.date,
         id_usuario: updatedOrder.operatorId,
         id_pos: updatedOrder.posId,
@@ -369,7 +371,7 @@ const OrderForm = () => {
   };
 
   const textFilteredOrders = orders.filter(order =>
-    order.orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (order.orderCode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     getPosName(order.posId).toLowerCase().includes(searchTerm.toLowerCase()) ||
     getOperatorName(order.operatorId).toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.status.toLowerCase().includes(searchTerm.toLowerCase())
@@ -411,13 +413,13 @@ const OrderForm = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="orderId" className="block text-sm font-medium text-gray-700">ID de Orden</label>
+            <label htmlFor="orderCode" className="block text-sm font-medium text-gray-700">ID de Orden</label>
             <input
               type="text"
-              id="orderId"
-              name="orderId"
+              id="orderCode"
+              name="codigoOrden"
               placeholder="Ej: PED-2023-001"
-              value={newOrder.orderId}
+              value={newOrder.codigoOrden}
               onChange={handleOrderInputChange}
               className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
             />
@@ -637,7 +639,7 @@ const OrderForm = () => {
               <div key={order.id} className="bg-white p-6 rounded-lg shadow-md">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="text-xl font-semibold text-gray-800">{order.orderId}</h3>
+                    <h3 className="text-xl font-semibold text-gray-800">{order.orderCode}</h3>
                     <p className="text-gray-600 mt-2">Fecha: {order.date}</p>
                     <p className="text-gray-600">Punto de Venta: {getPosName(order.posId)}</p>
                     <p className="text-gray-600">Operario: {getOperatorName(order.operatorId)}</p>

@@ -43,7 +43,7 @@ const OrderList = () => {
             });
             return {
               id: ord.id_orden,
-              orderId: String(ord.id_orden),
+              orderCode: ord.codigo_orden,
               date: ord.fecha_orden,
               posId: ord.id_pos,
               operatorId: ord.id_usuario,
@@ -69,7 +69,7 @@ const OrderList = () => {
 
   // Filtrar órdenes según el término de búsqueda
   const filteredOrders = orders.filter(order =>
-    order.orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (order.orderCode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     getPosName(order.posId).toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -88,11 +88,12 @@ const OrderList = () => {
     setEditedOrderStatus(order.status);
   };
 
- const handleSaveStatus = async (orderId) => { // Guardar estado editado
+const handleSaveStatus = async (orderId) => { // Guardar estado editado
     try {
       const orderToUpdate = orders.find(o => o.id === orderId);
       if (!orderToUpdate) return;
       await api.put(`/ordenes/${orderId}`, {
+        codigo_orden: orderToUpdate.orderCode,
         fecha_orden: orderToUpdate.date,
         id_usuario: orderToUpdate.operatorId,
         id_pos: orderToUpdate.posId,
@@ -137,7 +138,7 @@ const OrderList = () => {
             <div key={order.id} className="bg-white p-6 rounded-lg shadow-md">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-800">{order.orderId}</h3>
+                  <h3 className="text-xl font-semibold text-gray-800">{order.orderCode}</h3>
                   <p className="text-gray-600 mt-2">Fecha: {order.date}</p>
                   <p className="text-gray-600">Punto de Venta: {getPosName(order.posId)}</p>
                   {editingOrderId === order.id ? ( // Mostrar selector de estado si se está editando
