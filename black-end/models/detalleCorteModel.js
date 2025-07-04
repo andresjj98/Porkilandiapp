@@ -2,6 +2,9 @@
 const db = require('../config/db');
 const { getTipoCorteById } = require('./tipoCorteModel');
 const { createInventario } = require('./inventarioModel');
+const { getCanalById } = require('./canalModel');
+const { getFacturaById } = require('./facturaModel');
+const { getProductoByTipos } = require('./productoModel');
 
 async function getAllDetallesCorte() {
   const [rows] = await db.query(
@@ -37,7 +40,28 @@ async function createDetalleCorte({ id_desposte, id_canal, id_tipo_corte, peso, 
      VALUES (?, ?, ?, ?, ?)`,
     [id_desposte, id_canal, id_tipo_corte, peso, cantidad]
   );
-  return { id: result.insertId };
+  const inserted = { id: result.insertId };
+
+  try {
+    const canal = await getCanalById(id_canal);
+    if (canal) {
+      const factura  = await getFacturaById(canal.id_factura);
+      const producto = await getProductoByTipos(canal.id_tipo_carne, id_tipo_corte);
+      if (producto) {
+        await createInventario({
+          id_producto: producto.id_producto,
+          cantidad,
+          peso_total: peso,
+          estado: 'disponible',
+          origen: factura ? factura.number : String(canal.id_factura)
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error creando inventario desde detalle de corte:', err);
+  }
+
+  return inserted;
 }
 
 module.exports = {
