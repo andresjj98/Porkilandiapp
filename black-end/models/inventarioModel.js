@@ -71,6 +71,75 @@ async function deleteInventarioByOrigen(origen) {
   );
 }
 
+// Mueve inventario entre estados siguiendo la politica configurada
+async function moverInventario(id_producto, cantidad, peso_total, estadoOrigen, estadoDestino, origen) {
+  let restanteCant = cantidad;
+  let restantePeso = parseFloat(peso_total);
+
+  const politica = (process.env.INVENTORY_POLICY || 'LIFO').toUpperCase();
+  const orden = politica === 'FIFO' ? 'ASC' : 'DESC';
+
+  let query =
+    `SELECT id_inventario, cantidad, peso_total
+       FROM inventario
+      WHERE id_producto = ? AND estado = ?`;
+  const params = [id_producto, estadoOrigen];
+  if (estadoOrigen === 'comprometido' && origen) {
+    query += ' AND origen = ?';
+    params.push(origen);
+  }
+  query += ` ORDER BY id_inventario ${orden}`;
+
+  const [rows] = await db.query(query, params);
+
+  for (const item of rows) {
+    if (restanteCant <= 0 && restantePeso <= 0) break;
+
+    const pesoUnit = item.cantidad ? item.peso_total / item.cantidad : 0;
+    const tomarCant = Math.min(item.cantidad, restanteCant);
+    const tomarPeso = pesoUnit * tomarCant;
+
+    const nuevaCant = item.cantidad - tomarCant;
+    const nuevoPeso = item.peso_total - tomarPeso;
+
+    if (nuevaCant <= 0) {
+      await db.query(
+        `UPDATE inventario SET estado = ?, origen = ? WHERE id_inventario = ?`,
+        [estadoDestino, origen || null, item.id_inventario]
+      );
+    } else {
+      await db.query(
+        `UPDATE inventario SET cantidad = ?, peso_total = ? WHERE id_inventario = ?`,
+        [nuevaCant, nuevoPeso, item.id_inventario]
+      );
+      await db.query(
+        `INSERT INTO inventario (id_producto, cantidad, peso_total, estado, origen)
+         VALUES (?, ?, ?, ?, ?)`,
+        [id_producto, tomarCant, tomarPeso, estadoDestino, origen || null]
+      );
+    }
+
+    restanteCant -= tomarCant;
+    restantePeso -= tomarPeso;
+  }
+
+  return { restanteCant, restantePeso };
+}
+
+async function comprometerInventario(id_producto, cantidad, peso_total, origen) {
+  return moverInventario(id_producto, cantidad, peso_total, 'disponible', 'comprometido', origen);
+}
+
+async function despacharInventario(id_producto, cantidad, peso_total, origen) {
+  // Primero usar lo que esté comprometido para la orden
+  const res = await moverInventario(id_producto, cantidad, peso_total, 'comprometido', 'despachado', origen);
+  if (res.restanteCant > 0 || res.restantePeso > 0) {
+    return moverInventario(id_producto, res.restanteCant, res.restantePeso, 'disponible', 'despachado', origen);
+  }
+  return res;
+}
+
+
 // Descuenta inventario de un producto usando estrategia LIFO
 // Resta cantidad y peso siguiendo el orden de ingreso más reciente
 async function consumirInventarioLIFO(id_producto, cantidad, peso_total) {
@@ -164,6 +233,8 @@ module.exports = {
   deleteInventarioByProductoOrigen,
   deleteInventarioByOrigen,
   consumirInventarioLIFO,
+  comprometerInventario,
+  despacharInventario,
   getInventarioResumen,
   getInventarioDetalles
 };

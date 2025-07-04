@@ -13,8 +13,7 @@ const {
 } = require('../models/ordenModel');
 const { getDetalleByOrden } = require('../models/detalleOrdenModel');
 
-const { consumirInventarioLIFO } = require('../models/inventarioModel');
-
+const { comprometerInventario, despacharInventario } = require('../models/inventarioModel');
 const router = express.Router();
 
 // GET /api/ordenes  (admin + operario)
@@ -115,10 +114,20 @@ router.put(
     try {
       const prev = await getOrdenById(req.params.id);
       await updateOrden(req.params.id, req.body);
-      if (req.body.estado === 'entregada') {
+     if (req.body.estado && req.body.estado !== prev.estado) {
         const detalles = await getDetalleByOrden(req.params.id);
-        for (const det of detalles) {
-          await consumirInventarioLIFO(det.id_producto, det.cantidad, det.peso_total);
+        const origen = `orden:${req.params.id}`;
+
+        if (['pendiente','enviada'].includes(req.body.estado)) {
+          for (const det of detalles) {
+            await comprometerInventario(det.id_producto, det.cantidad, det.peso_total, origen);
+          }
+        }
+
+        if (req.body.estado === 'entregada') {
+          for (const det of detalles) {
+            await despacharInventario(det.id_producto, det.cantidad, det.peso_total, origen);
+          }
         }
       }
       
