@@ -4,7 +4,7 @@ const { getTipoCorteById } = require('./tipoCorteModel');
 const { createInventario } = require('./inventarioModel');
 const { getCanalById } = require('./canalModel');
 const { getFacturaById } = require('./facturaModel');
-const { getProductoByTipos } = require('./productoModel');
+const { getProductoByTipos, createProducto } = require('./productoModel');
 
 async function getAllDetallesCorte() {
   const [rows] = await db.query(
@@ -46,7 +46,17 @@ async function createDetalleCorte({ id_desposte, id_canal, id_tipo_corte, peso, 
     const canal = await getCanalById(id_canal);
     if (canal) {
       const factura  = await getFacturaById(canal.id_factura);
-      const producto = await getProductoByTipos(canal.id_tipo_carne, id_tipo_corte);
+      let producto   = await getProductoByTipos(canal.id_tipo_carne, id_tipo_corte);
+
+      // Si no existe el producto para la combinación carne/corte lo creamos
+      if (!producto) {
+        const nuevo = await createProducto({
+          id_tipo_carne: canal.id_tipo_carne,
+          id_tipo_corte
+        });
+        producto = { id_producto: nuevo.id };
+      }
+
       if (producto) {
         await createInventario({
           id_producto: producto.id_producto,
