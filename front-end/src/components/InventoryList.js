@@ -50,25 +50,7 @@ const InventoryList = () => {
         ) : (
           <p className="text-gray-600">No hay datos de inventario.</p>
         )}
-      </div>
-
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Inventario Total por Tipo de Corte</h2>
-        {Object.keys(summaryByCut).length ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Object.entries(summaryByCut).map(([cut, data]) => (
-              <div key={cut} className="border border-gray-200 rounded-lg p-4">
-                <p className="text-gray-800 font-medium">{cut}</p>
-                <p className="text-gray-700 text-sm">Piezas: {data.quantity}</p>
-                <p className="text-gray-700 text-sm">Peso: {data.weight.toFixed(2)} kg</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-600">No hay datos de inventario.</p>
-        )}
-      </div>
-
+      </div>     
       <div className="space-y-8">
         <h2 className="text-2xl font-bold text-gray-800">Inventario Detallado</h2>
         {Object.keys(detailByMeat).length ? (

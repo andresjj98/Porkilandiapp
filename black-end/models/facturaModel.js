@@ -1,5 +1,8 @@
 // models/facturaModel.js
 const db = require('../config/db');
+const { deleteDesposte } = require('./desposteModel');
+const { deleteCanal } = require('./canalModel');
+const { deleteInventarioByOrigen } = require('./inventarioModel');
 
 // Devuelve todas las facturas
 async function getAllFacturas() {
@@ -130,26 +133,39 @@ async function updateFactura(id, { numero_guia, fecha, fecha_sacrificio, id_prov
     [numero_guia, fecha, fecha_sacrificio, id_proveedor, id_usuario, id]
   );
 }
-// Borra una factura y todo lo que dependa de ella
+// Borra una factura, sus despostes, canales e inventario relacionado
 async function deleteFactura(id) {
-  // 1) Borra primero los registros en 'despostes'
-  await db.query(
-    `DELETE FROM despostes WHERE id_factura = ?`,
+  // Obtener la factura para conocer el número de guía
+  const [factRows] = await db.query(
+    `SELECT numero_guia AS number FROM facturas WHERE id_factura = ?`,
     [id]
   );
+  const facturaNumber = factRows[0] ? factRows[0].number : null;
 
-  // 2) Luego borra canales (y sus detalles de corte si hace falta)
-  //    (si ya manejas deleteCanal con limpieza de detalles_corte, usa esa)
-  await db.query(
-    `DELETE FROM canales WHERE id_factura = ?`,
-    [id]
-  );
+  if (facturaNumber) {
+    await deleteInventarioByOrigen(facturaNumber);
+  }
 
-  // 3) Finalmente borra la factura
-  await db.query(
-    `DELETE FROM facturas WHERE id_factura = ?`,
+  // Eliminar despostes asociados (esto también limpia detalles e inventario)
+  const [desRows] = await db.query(
+    `SELECT id_desposte FROM despostes WHERE id_factura = ?`,
     [id]
   );
+  for (const d of desRows) {
+    await deleteDesposte(d.id_desposte);
+  }
+
+  // Eliminar canales ligados a la factura
+  const [canRows] = await db.query(
+    `SELECT id_canal FROM canales WHERE id_factura = ?`,
+    [id]
+  );
+  for (const c of canRows) {
+    await deleteCanal(c.id_canal);
+  }
+
+  // Finalmente borra la factura
+  await db.query(`DELETE FROM facturas WHERE id_factura = ?`, [id]);
 }
 module.exports = {
   getAllFacturas,

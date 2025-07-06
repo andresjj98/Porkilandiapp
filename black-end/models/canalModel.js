@@ -1,5 +1,7 @@
 // models/canalModel.js
 const db = require('../config/db');
+const { deleteDesposte } = require('./desposteModel');
+const { deleteInventarioByOrigen } = require('./inventarioModel');
 
 // Devuelve todos los canales
 async function getAllCanales() {
@@ -55,18 +57,34 @@ async function updateCanal({ id, codigo_canal, id_factura, id_tipo_carne, peso }
   );
 }
 
-// Elimina un canal
+// Elimina un canal junto con su desposte e inventario
 async function deleteCanal(id) {
-  // 1) Borrar detalles de corte asociados
-  await db.query(
-    `DELETE FROM detalles_corte WHERE id_canal = ?`,
+  // Obtener información del canal y factura relacionada
+  const canal = await getCanalById(id);
+  if (!canal) return;
+
+  const [factRows] = await db.query(
+    'SELECT numero_guia AS number FROM facturas WHERE id_factura = ?',
+    [canal.id_factura]
+  );
+   const facturaNumber = factRows[0] ? factRows[0].number : null;
+
+  if (facturaNumber) {
+    await deleteInventarioByOrigen(facturaNumber);
+  }
+
+  // Buscar despostes que incluyan este canal
+  const [desRows] = await db.query(
+    'SELECT DISTINCT id_desposte FROM detalles_corte WHERE id_canal = ?',
     [id]
   );
-  // 2) Borrar el canal
-  await db.query(
-    `DELETE FROM canales WHERE id_canal = ?`,
-    [id]
-  );
+  for (const d of desRows) {
+    await deleteDesposte(d.id_desposte);
+  }
+
+  // Limpiar detalles en caso de que queden registros huérfanos
+  await db.query('DELETE FROM detalles_corte WHERE id_canal = ?', [id]);
+  await db.query('DELETE FROM canales WHERE id_canal = ?', [id]);
 }
 
 module.exports = {
