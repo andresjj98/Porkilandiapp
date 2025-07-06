@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import api from '../services/api';
 import { filterByDateRange } from '../utils/dateFilters';
 import { subtractFromInventory } from '../utils/inventoryLogic';
+import { InventoryContext } from '../contexts/InventoryContext';
 
 
 const OrderForm = () => {
@@ -19,7 +20,7 @@ const OrderForm = () => {
   const [invoices, setInvoices] = useState([]);
   const [users, setUsers] = useState([]);
   const [meatTypeNameToId, setMeatTypeNameToId] = useState({});
-
+  const { refreshInventory } = useContext(InventoryContext);
   const [newOrder, setNewOrder] = useState({
     codigoOrden: '',
     date: '',
@@ -355,6 +356,7 @@ const OrderForm = () => {
         id_pos: updatedOrder.posId,
         estado: editedOrderStatus
       });
+      await refreshInventory();
       setOrders(prev => prev.map(order => order.id === orderId ? updatedOrder : order));
       setEditingOrderId(null);
       setEditedOrderStatus('');

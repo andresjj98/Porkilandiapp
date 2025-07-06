@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import api from '../services/api';     // ← usamos el cliente que creaste
+import { InventoryContext } from '../contexts/InventoryContext';
 
 const LoginScreen = ({ setUser, setCurrentPage }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState('');
+  const { refreshInventory } = useContext(InventoryContext);
 
   const handleSubmit = async e => {
     e.preventDefault();
@@ -25,7 +27,10 @@ const LoginScreen = ({ setUser, setCurrentPage }) => {
       /* ─ 4. guardamos al usuario en el estado global de tu App ─────────── */
       setUser(data.user);              // { id, username, role }
 
-      /* ─ 5. redirigimos a la vista Facturas (o la que prefieras) ──────── */
+      /* ─ 5. cargamos el inventario inicial ─────────────────────────────── */
+      await refreshInventory();
+
+      /* ─ 6. redirigimos a la vista Facturas (o la que prefieras) ──────── */
       setCurrentPage('invoices');
     } catch (err) {
       console.error(err);
