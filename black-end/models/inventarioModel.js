@@ -139,6 +139,10 @@ async function despacharInventario(id_producto, cantidad, peso_total, origen) {
   return res;
 }
 
+// Devuelve inventario previamente despachado al estado disponible
+async function devolverInventario(id_producto, cantidad, peso_total, origen) {
+  return moverInventario(id_producto, cantidad, peso_total, 'despachado', 'disponible', origen);
+}
 
 // Descuenta inventario de un producto usando estrategia LIFO
 // Resta cantidad y peso siguiendo el orden de ingreso más reciente
@@ -235,6 +239,7 @@ module.exports = {
   consumirInventarioLIFO,
   comprometerInventario,
   despacharInventario,
+  devolverInventario,
   getInventarioResumen,
   getInventarioDetalles
 };

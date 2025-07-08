@@ -13,7 +13,7 @@ const {
 } = require('../models/ordenModel');
 const { getDetalleByOrden } = require('../models/detalleOrdenModel');
 
-const { comprometerInventario, despacharInventario } = require('../models/inventarioModel');
+const { comprometerInventario, despacharInventario, devolverInventario } = require('../models/inventarioModel');
 const router = express.Router();
 
 // GET /api/ordenes  (admin + operario)
@@ -120,7 +120,11 @@ router.put(
 
         if (['pendiente','enviada'].includes(req.body.estado)) {
           for (const det of detalles) {
-            await comprometerInventario(det.id_producto, det.cantidad, det.peso_total, origen);
+            if (prev.estado === 'entregada') {
+              await devolverInventario(det.id_producto, det.cantidad, det.peso_total, null);
+            } else {
+              await comprometerInventario(det.id_producto, det.cantidad, det.peso_total, origen);
+            }
           }
         }
 
