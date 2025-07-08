@@ -55,8 +55,8 @@ const ManagementModule = () => {
       setPosList(
         posFromApi.map(p => ({
           id: p.id,
-         name: p.nombre,
-          location: p.direccion
+          name: p.name,
+          location: p.location
         }))
       );
 
@@ -502,16 +502,7 @@ if (loading) {
         <div>
           <h3 className="text-xl font-semibold text-gray-800 mb-4">Usuarios Existentes</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {users.map(u => {
-        const user = {
-          id:       u.id,         // o u.id_usuario según tu API
-          fullName: u.nombre,
-          username: u.username,
-          userId:   u.numero_id,
-          email:    u.correo,
-          role:     u.role
-        };
-        return (
+      {users.map(user => (
               <div key={user.id} className="bg-white p-6 rounded-lg shadow-md">
                 <h4 className="text-lg font-semibold text-gray-800">{user.fullName}</h4>
                 <p className="text-gray-600 mt-2">Usuario: {user.username}</p>
@@ -522,8 +513,7 @@ if (loading) {
                   <button onClick={() => handleDeleteUser(user.id)} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Eliminar</button>
                 )}
               </div>
-              );             
-            })}
+              ))}
           </div>
         </div>
 
