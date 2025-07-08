@@ -1,7 +1,5 @@
 // models/facturaModel.js
 const db = require('../config/db');
-const { deleteDesposte } = require('./desposteModel');
-const { deleteCanal } = require('./canalModel');
 const { deleteInventarioByOrigen } = require('./inventarioModel');
 
 // Devuelve todas las facturas
@@ -135,6 +133,8 @@ async function updateFactura(id, { numero_guia, fecha, fecha_sacrificio, id_prov
 }
 // Borra una factura, sus despostes, canales e inventario relacionado
 async function deleteFactura(id) {
+  const { deleteDesposte } = require('./desposteModel');
+  const { deleteCanal } = require('./canalModel');
   // Obtener la factura para conocer el número de guía
   const [factRows] = await db.query(
     `SELECT numero_guia AS number FROM facturas WHERE id_factura = ?`,

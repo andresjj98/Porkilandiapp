@@ -2,8 +2,6 @@
 const db = require('../config/db');
 const { getTipoCorteById } = require('./tipoCorteModel');
 const { createInventario } = require('./inventarioModel');
-const { getCanalById } = require('./canalModel');
-const { getFacturaById } = require('./facturaModel');
 const { getProductoByTipos, createProducto } = require('./productoModel');
 
 async function getAllDetallesCorte() {
@@ -43,6 +41,8 @@ async function createDetalleCorte({ id_desposte, id_canal, id_tipo_corte, peso, 
   const inserted = { id: result.insertId };
 
   try {
+    const { getCanalById } = require('./canalModel');
+    const { getFacturaById } = require('./facturaModel');
     const canal = await getCanalById(id_canal);
     if (canal) {
       const factura  = await getFacturaById(canal.id_factura);

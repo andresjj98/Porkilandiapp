@@ -1,6 +1,5 @@
 // models/canalModel.js
 const db = require('../config/db');
-const { deleteDesposte } = require('./desposteModel');
 const { deleteInventarioByOrigen } = require('./inventarioModel');
 
 // Devuelve todos los canales
@@ -59,6 +58,7 @@ async function updateCanal({ id, codigo_canal, id_factura, id_tipo_carne, peso }
 
 // Elimina un canal junto con su desposte e inventario
 async function deleteCanal(id) {
+  const { deleteDesposte } = require('./desposteModel');
   // Obtener información del canal y factura relacionada
   const canal = await getCanalById(id);
   if (!canal) return;
