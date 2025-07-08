@@ -17,7 +17,7 @@ const LayoutHeader = ({ currentPage, setCurrentPage, userRole, onLogout }) => {
     ? allNavItems                                   // admin ve todo
     : allNavItems.filter(item => {                  // otros roles
         if (role === 'operario')
-          return ['invoices','deboning','inventory'].includes(item.page);
+         return ['invoices','deboning','inventory','orders'].includes(item.page);
         if (role === 'punto_venta')
           return ['orders'].includes(item.page);
         return false;
