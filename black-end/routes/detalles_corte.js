@@ -53,8 +53,8 @@ router.post(
   authorizeRoles('admin', 'operario'),
   async (req, res) => {
   try {
-    const { id_desposte, id_canal, id_tipo_corte, peso, cantidad } = req.body;
-    const { id } = await createDetalleCorte({ id_desposte, id_canal, id_tipo_corte, peso, cantidad });
+    const { id_desposte, id_tipo_corte, peso, cantidad, id_tipo_carne } = req.body;
+    const { id } = await createDetalleCorte({ id_desposte, id_tipo_corte, peso, cantidad, id_tipo_carne });
     res.status(201).json({ message: 'Detalle de corte creado', id });
   } catch (err) {
     console.error(err);

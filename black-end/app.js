@@ -16,6 +16,7 @@ const proveedoresRouter   = require('./routes/proveedores');
 const facturasRouter      = require('./routes/facturas');
 const canalesRouter       = require('./routes/canales');
 const despostesRouter     = require('./routes/despostes');
+const desposteCanalesRouter = require('./routes/desposte_canales');
 const detallesCorteRouter = require('./routes/detalles_corte');
 const productosRouter   = require('./routes/productos');
 const tiposCorteRouter  = require('./routes/tipos_corte');
@@ -84,6 +85,12 @@ app.use(
   verifyToken,
   authorizeRoles('admin', 'operario'),
   despostesRouter
+);
+app.use(
+  '/api/desposte_canales',
+  verifyToken,
+  authorizeRoles('admin', 'operario'),
+  desposteCanalesRouter
 );
 app.use(
   '/api/detalles_corte',

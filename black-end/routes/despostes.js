@@ -10,6 +10,8 @@ const {
   deleteDesposte
 } = require('../models/desposteModel');
 const { createDetalleCorte } = require('../models/detalleCorteModel');
+const { createDesposteCanal } = require('../models/desposteCanalModel');
+const { getCanalById } = require('../models/canalModel');
 
 const router = express.Router();
 
@@ -60,11 +62,12 @@ router.post(
     body('id_usuario')
       .notEmpty().withMessage('El ID de usuario es requerido')
       .isInt().withMessage('El ID de usuario debe ser un número entero'),
+    body('channelIds')
+      .isArray({ min: 1 }).withMessage('Debe venir un arreglo de canales'),
+    body('channelIds.*')
+      .isInt().withMessage('Cada id de canal debe ser entero'),
     body('cuts')
-      .isArray({ min: 1 }).withMessage('Debe venir un arreglo de cortes'),
-    body('cuts.*.canalId')
-      .notEmpty().withMessage('Cada corte necesita canalId')
-      .isInt().withMessage('canalId debe ser entero'),
+      .isArray({ min: 1 }).withMessage('Debe venir un arreglo de cortes'),    
     body('cuts.*.cutTypeId')
       .notEmpty().withMessage('Cada corte necesita cutTypeId')
       .isInt().withMessage('cutTypeId debe ser entero'),
@@ -77,7 +80,7 @@ router.post(
   ],
   validateRequest,
   async (req, res) => {
-    const { id_factura, id_usuario, cuts } = req.body;
+    const { id_factura, id_usuario, channelIds, cuts } = req.body;
     // Generamos fecha automáticamente:
     const fecha = new Date().toISOString().split('T')[0];
 
@@ -85,14 +88,25 @@ router.post(
       // 1) Creamos el desposte
       const { id: desposteId } = await createDesposte({ id_factura, id_usuario, fecha });
 
-      // 2) Creamos cada detalle de corte
+     // 2) Asociar canales
+      const canalesInfo = [];
+      for (const cid of channelIds) {
+        const canal = await getCanalById(cid);
+        if (canal) {
+          canalesInfo.push(canal);
+          await createDesposteCanal({ id_desposte: desposteId, id_canal: cid });
+        }
+      }
+      const id_tipo_carne = canalesInfo.length > 0 ? canalesInfo[0].id_tipo_carne : null;
+
+      // 3) Creamos cada detalle de corte
       for (const c of cuts) {
         await createDetalleCorte({
-          id_desposte:   desposteId,
-          id_canal:      c.canalId,
+          id_desposte:   desposteId,          
           id_tipo_corte: c.cutTypeId,
           peso:          c.weight,
-          cantidad:      c.quantity
+          cantidad:      c.quantity,
+          id_tipo_carne
         });
       }
 

@@ -6,7 +6,7 @@ const { getProductoByTipos, createProducto } = require('./productoModel');
 
 async function getAllDetallesCorte() {
   const [rows] = await db.query(
-    `SELECT id_detalle, id_desposte, id_canal, id_tipo_corte, peso, cantidad
+    `SELECT id_detalle, id_desposte, id_tipo_corte, peso, cantidad
      FROM detalles_corte`
   );
   return rows;
@@ -14,7 +14,7 @@ async function getAllDetallesCorte() {
 
 async function getDetallesByDesposte(id_desposte) {
   const [rows] = await db.query(
-    `SELECT id_detalle, id_desposte, id_canal, id_tipo_corte, peso, cantidad
+    `SELECT id_detalle, id_desposte, id_tipo_corte, peso, cantidad
      FROM detalles_corte
      WHERE id_desposte = ?`,
     [id_desposte]
@@ -24,7 +24,7 @@ async function getDetallesByDesposte(id_desposte) {
 
 async function getDetalleById(id) {
   const [rows] = await db.query(
-    `SELECT id_detalle, id_desposte, id_canal, id_tipo_corte, peso, cantidad
+    `SELECT id_detalle, id_desposte, id_tipo_corte, peso, cantidad
      FROM detalles_corte
      WHERE id_detalle = ?`,
     [id]
@@ -32,40 +32,32 @@ async function getDetalleById(id) {
   return rows[0];
 }
 
-async function createDetalleCorte({ id_desposte, id_canal, id_tipo_corte, peso, cantidad }) {
+async function createDetalleCorte({ id_desposte, id_tipo_corte, peso, cantidad, id_tipo_carne }) {
   const [result] = await db.query(
-    `INSERT INTO detalles_corte (id_desposte, id_canal, id_tipo_corte, peso, cantidad)
-     VALUES (?, ?, ?, ?, ?)`,
-    [id_desposte, id_canal, id_tipo_corte, peso, cantidad]
+   `INSERT INTO detalles_corte (id_desposte, id_tipo_corte, peso, cantidad)
+     VALUES (?, ?, ?, ?)`,
+    [id_desposte, id_tipo_corte, peso, cantidad]
   );
   const inserted = { id: result.insertId };
 
   try {
-    const { getCanalById } = require('./canalModel');
-    const { getFacturaById } = require('./facturaModel');
-    const canal = await getCanalById(id_canal);
-    if (canal) {
-      const factura  = await getFacturaById(canal.id_factura);
-      let producto   = await getProductoByTipos(canal.id_tipo_carne, id_tipo_corte);
-
-      // Si no existe el producto para la combinación carne/corte lo creamos
-      if (!producto) {
-        const nuevo = await createProducto({
-          id_tipo_carne: canal.id_tipo_carne,
-          id_tipo_corte
-        });
-        producto = { id_producto: nuevo.id };
-      }
+     let producto = await getProductoByTipos(id_tipo_carne, id_tipo_corte);
+    if (!producto) {
+      const nuevo = await createProducto({
+        id_tipo_carne,
+        id_tipo_corte
+      });
+      producto = { id_producto: nuevo.id };
+    }
 
       if (producto) {
-        await createInventario({
-          id_producto: producto.id_producto,
-          cantidad,
-          peso_total: peso,
-          estado: 'disponible',
-          origen: `canal:${canal.id_canal}`
-        });
-      }
+      await createInventario({
+        id_producto: producto.id_producto,
+        cantidad,
+        peso_total: peso,
+        estado: 'disponible',
+        origen: `desposte:${id_desposte}`
+      });
     }
   } catch (err) {
     console.error('Error creando inventario desde detalle de corte:', err);

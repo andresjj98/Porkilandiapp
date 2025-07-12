@@ -12,12 +12,13 @@ const DeboningForm = () => {
   const [users, setUsers] = useState([]); // Inicializar vacío
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
   const [selectedOperatorId, setSelectedOperatorId] = useState('');
-  const [availableCarcasses, setAvailableCarcasses] = useState([]);
-  const [selectedCarcassCode, setSelectedCarcassCode] = useState('');
-  const [currentCutsForCarcass, setCurrentCutsForCarcass] = useState([]);
+  const [availableChannels, setAvailableChannels] = useState([]);
+  const [selectedChannelCodes, setSelectedChannelCodes] = useState([]);
+  const [currentCuts, setCurrentCuts] = useState([]);
   const [newCut, setNewCut] = useState({ cutType: '', weight: '', quantity: '' });
   const [cutTypes, setCutTypes] = useState({}); // Inicializar vacío
   const [cutTypeNameToId, setCutTypeNameToId] = useState({});
+  const [desposteChannelsMap, setDesposteChannelsMap] = useState({});
 
   const { refreshInventory } = useContext(InventoryContext);
 
@@ -68,19 +69,26 @@ const loadData = async () => {
 
       const desposteMap = {};
       const desposteList = desRes.status === 'fulfilled' ? desRes.value.data : [];
-      desposteList.forEach(d => {
+      const desCanalMap = {};
+      for (const d of desposteList) {
         desposteMap[d.id_desposte] = d;
-      });
+      try {
+          const resp = await api.get(`/desposte_canales?desposte=${d.id_desposte}`);
+          desCanalMap[d.id_desposte] = resp.data || [];
+        } catch (err) {
+          desCanalMap[d.id_desposte] = [];
+        }
+      }
 
       const detData = detRes.status === 'fulfilled' ? detRes.value.data : [];
       const mappedCuts = (detData || []).map(det => {
-        const des = desposteMap[det.id_desposte] || {};
-        const canal = canalMap[det.id_canal] || {};
+        const des = desposteMap[det.id_desposte] || {};        
         return {
           id: det.id_detalle,
-          invoiceId: canal.invoiceId || des.id_factura,
+          desposteId: det.id_desposte,
+          invoiceId: des.id_factura,
           operatorId: des.id_usuario,
-          carcassCode: canal.code || String(det.id_canal),
+          channelCodes: (desCanalMap[det.id_desposte] || []).map(cid => canalMap[cid]?.code || cid),
           cutType: cutIdToName[det.id_tipo_corte] || String(det.id_tipo_corte),
           weight: parseFloat(det.peso),
           quantity: det.cantidad,
@@ -97,6 +105,7 @@ const loadData = async () => {
 
       setCuts(mappedCuts);
       setDespostes(desposteList);
+      setDesposteChannelsMap(desCanalMap);
       setUsers(userList);
       setCutTypes(cutTypesByMeat);
       setCutTypeNameToId(cutNameToId);
@@ -116,27 +125,25 @@ const loadData = async () => {
     if (selectedInvoiceId) {
       const invoice = invoices.find(inv => inv.id === selectedInvoiceId);
       if (invoice) {
-        const despostedCarcassCodes = cuts
-          .filter(cut => cut.invoiceId === selectedInvoiceId)
-          .map(cut => cut.carcassCode);
-
-        const available = invoice.channels.filter(channel =>
-          !despostedCarcassCodes.includes(channel.code)
-        );
-        setAvailableCarcasses(available);
-        setSelectedCarcassCode('');
-        setCurrentCutsForCarcass([]);
+        const usedCodes = Object.entries(desposteChannelsMap).flatMap(([_, codes]) => {
+          const des = despostes.find(d => d.id_desposte === Number(_));
+          return des && des.id_factura === selectedInvoiceId ? codes.map(id => invoice.channels.find(c=>c.id===id)?.code) : [];
+        });
+        const available = invoice.channels.filter(ch => !usedCodes.includes(ch.code));
+        setAvailableChannels(available);
+        setSelectedChannelCodes([]);
+        setCurrentCuts([]);
       }
     } else {
-      setAvailableCarcasses([]);
-      setSelectedCarcassCode('');
-        setCurrentCutsForCarcass([]);
+      setAvailableChannels([]);
+      setSelectedChannelCodes([]);
+      setCurrentCuts([]);
     }
-  }, [selectedInvoiceId, invoices, cuts]);
+  }, [selectedInvoiceId, invoices, desposteChannelsMap, despostes]);
 
   useEffect(() => {
-    setCurrentCutsForCarcass([]);
-  }, [selectedCarcassCode]);
+    setCurrentCuts([]);
+  }, [selectedChannelCodes.join(',')]);
 
   useEffect(() => {
     const dateFilteredCuts = filterByDateRange(cuts, startDate, endDate, 'processingDate');
@@ -180,33 +187,27 @@ const loadData = async () => {
       quantity: parseInt(newCut.quantity, 10),
     };
 
-    setCurrentCutsForCarcass([...currentCutsForCarcass, cutToAdd]);
+    setCurrentCuts([...currentCuts, cutToAdd]);
     setNewCut({ cutType: '', weight: '', quantity: '' });
   };
 
   const handleDeleteTemporaryCut = (id) => {
-    setCurrentCutsForCarcass(currentCutsForCarcass.filter(cut => cut.id !== id));
+    setCurrentCuts(currentCuts.filter(cut => cut.id !== id));
   };
 
   const handleRegisterAllCuts = async () => {
-    if (currentCutsForCarcass.length === 0) {
+    if (currentCuts.length === 0) {
       alert('No hay cortes para registrar.');
       return;
     }
-    if (!selectedInvoiceId || !selectedOperatorId || !selectedCarcassCode) {
-       alert('Por favor, selecciona la factura, el operario y el canal.');
+    if (!selectedInvoiceId || !selectedOperatorId || selectedChannelCodes.length === 0) {
+       alert('Por favor, selecciona la factura, el operario y al menos un canal.');
        return;
     }
 
     const invoice = invoices.find(inv => inv.id === selectedInvoiceId);
-    const channel = invoice ? invoice.channels.find(c => c.code === selectedCarcassCode) : null;
-    if (!channel) {
-      alert('Canal no encontrado en la factura seleccionada.');
-      return;
-    }
-
-     const cutsToSend = currentCutsForCarcass.map(cut => ({
-      canalId: channel.id,
+    const channelIds = invoice ? invoice.channels.filter(c => selectedChannelCodes.includes(c.code)).map(c=>c.id) : [];
+      const cutsToSend = currentCuts.map(cut => ({
       cutTypeId: cutTypeNameToId[cut.cutType],
       weight: cut.weight,
       quantity: cut.quantity
@@ -216,12 +217,13 @@ const loadData = async () => {
       await api.post('/despostes', {
         id_factura: selectedInvoiceId,
         id_usuario: selectedOperatorId,
+        channelIds,
         cuts: cutsToSend
       });
       await loadData();
       await refreshInventory();
-      setCurrentCutsForCarcass([]);
-      setSelectedCarcassCode('');
+      setCurrentCuts([]);
+      setSelectedChannelCodes([]);
       setNewCut({ cutType: '', weight: '', quantity: '' });
       alert('Cortes registrados con éxito!');
     } catch (error) {
@@ -255,40 +257,24 @@ const loadData = async () => {
     return Object.entries(summary);
   };
 
-  const getTotalWeightByCarcass = (invoiceId, cutsList) => {
-    const summary = cutsList.reduce((acc, cut) => {
-      if (cut.invoiceId === invoiceId) {
-        acc[cut.carcassCode] = (acc[cut.carcassCode] || 0) + cut.weight;
-      }
-      return acc;
-    }, {});
-    return Object.entries(summary);
+  const getTotalWeightByInvoice = (invoiceId, cutsList) => {
+    return cutsList.reduce((sum, cut) =>
+      cut.invoiceId === invoiceId ? sum + cut.weight : sum, 0);
   };
 
-  const getMermaByCarcass = (invoiceId, cutsList) => {
+  const getMermaByInvoice = (invoiceId, cutsList) => {
     const invoice = invoices.find(inv => inv.id === invoiceId);
-    if (!invoice) return {};
+    if (!invoice) return 0;
 
-    const channelWeights = invoice.channels.reduce((acc, channel) => {
-      acc[channel.code] = parseFloat(channel.weight);
+    const channels = invoice.channels;
+    const selectedIds = Object.entries(desposteChannelsMap).reduce((acc,[dId,ids])=>{
+      const d = despostes.find(ds=>ds.id_desposte===Number(dId));
+      if(d && d.id_factura===invoiceId) acc.push(...ids);
       return acc;
-    }, {});
-
-    const cutWeights = cutsList.reduce((acc, cut) => {
-      if (cut.invoiceId === invoiceId) {
-        acc[cut.carcassCode] = (acc[cut.carcassCode] || 0) + cut.weight;
-      }
-      return acc;
-    }, {});
-
-    const merma = {};
-    Object.keys(channelWeights).forEach(code => {
-      const channelWeight = channelWeights[code] || 0;
-      const cutWeight = cutWeights[code] || 0;
-      merma[code] = channelWeight - cutWeight;
-    });
-    
-    return Object.entries(merma);
+   },[]);
+    const totalChannelWeight = channels.filter(ch=>selectedIds.includes(ch.id)).reduce((s,ch)=>s+parseFloat(ch.weight),0);
+    const cutsWeight = getTotalWeightByInvoice(invoiceId, cutsList);
+    return totalChannelWeight - cutsWeight;
   };
 const getMermaByMeatType = (invoiceId, cutsList) => {
     const invoice = invoices.find(inv => inv.id === invoiceId);
@@ -301,8 +287,7 @@ const getMermaByMeatType = (invoiceId, cutsList) => {
 
     const cutWeights = cutsList.reduce((acc, cut) => {
       if (cut.invoiceId === invoiceId) {
-        const channel = invoice.channels.find(ch => ch.code === cut.carcassCode);
-        const type = channel ? channel.type : 'Desconocido';
+        const type = getSelectedMeatType();
         acc[type] = (acc[type] || 0) + cut.weight;
       }
       return acc;
@@ -319,23 +304,23 @@ const getMermaByMeatType = (invoiceId, cutsList) => {
   };
 
 
-  const getCarcassType = (carcassCode) => {
+  const getSelectedMeatType = () => {
     const invoice = invoices.find(inv => inv.id === selectedInvoiceId);
-    if (invoice) {
-      const channel = invoice.channels.find(ch => ch.code === carcassCode);
-      return channel ? channel.type : 'Desconocido';
-    }
-    return 'Desconocido';
+    if (!invoice) return '';
+    const ch = invoice.channels.find(c => selectedChannelCodes.includes(c.code));
+    return ch ? ch.type : '';
   };
 
-  const availableCutTypes = selectedCarcassCode ? cutTypes[getCarcassType(selectedCarcassCode)] || [] : [];
+  const availableCutTypes = selectedChannelCodes.length > 0 ? cutTypes[getSelectedMeatType()] || [] : [];
 
 // Mostrar solo las facturas que tienen al menos un canal pendiente de desposte
   const invoicesWithPendingChannels = invoices.filter(invoice => {
-    const despostedCodes = cuts
-      .filter(cut => cut.invoiceId === invoice.id)
-      .map(cut => cut.carcassCode);
-    return invoice.channels.some(ch => !despostedCodes.includes(ch.code));
+    const usedIds = Object.entries(desposteChannelsMap).reduce((acc,[dId,ids])=>{
+      const d = despostes.find(ds=>ds.id_desposte===Number(dId));
+      if(d && d.id_factura===invoice.id) acc.push(...ids);
+      return acc;
+    },[]);
+    return invoice.channels.some(ch => !usedIds.includes(ch.id));
   });
 
   const groupedCutsArray = Object.entries(groupedCuts);
@@ -412,29 +397,33 @@ const getMermaByMeatType = (invoiceId, cutsList) => {
         </div>
 
         <div className="mt-3">
-          <label htmlFor="carcass" className="block text-sm font-medium text-gray-700">Seleccionar Canal a Despostar</label>
-          <select
-            id="carcass"
-            value={selectedCarcassCode}
-            onChange={(e) => setSelectedCarcassCode(e.target.value)}
-            className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition"
-            disabled={!selectedInvoiceId || availableCarcasses.length === 0}
-          >
-            <option value="">Selecciona un Canal</option>
-            {availableCarcasses.map(carcass => (
-              <option key={carcass.code} value={carcass.code}>
-                {`Código: ${carcass.code} (${carcass.type}, ${carcass.weight}kg)`}
-              </option>
+           <label className="block text-sm font-medium text-gray-700">Seleccionar Canales a Despostar</label>
+          <div className="mt-2 space-y-1">
+            {availableChannels.map(ch => (
+              <label key={ch.code} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={selectedChannelCodes.includes(ch.code)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedChannelCodes([...selectedChannelCodes, ch.code]);
+                    } else {
+                      setSelectedChannelCodes(selectedChannelCodes.filter(c => c !== ch.code));
+                    }
+                  }}
+                />
+                <span>{`Código: ${ch.code} (${ch.type}, ${ch.weight}kg)`}</span>
+              </label>
             ))}
-          </select>
-           {selectedInvoiceId && availableCarcasses.length === 0 && (
-            <p className="text-sm text-gray-500 mt-1">No hay canales disponibles para despostar en esta factura.</p>
-          )}
+          {selectedInvoiceId && availableChannels.length === 0 && (
+              <p className="text-sm text-gray-500">No hay canales disponibles para despostar en esta factura.</p>
+            )}
+          </div>
         </div>
 
-        {selectedCarcassCode && (
+        {selectedChannelCodes.length > 0 && (
           <div className="mt-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-            <h4 className="text-lg font-semibold text-gray-800 mb-3">Registrar Cortes para Canal {selectedCarcassCode} ({getCarcassType(selectedCarcassCode)})</h4>
+            <h4 className="text-lg font-semibold text-gray-800 mb-3">Registrar Cortes para Canales {selectedChannelCodes.join(', ')}</h4>
 
             <div className="mt-3">
               <label htmlFor="cutType" className="block text-sm font-medium text-gray-700">Tipo de Corte</label>
@@ -487,11 +476,11 @@ const getMermaByMeatType = (invoiceId, cutsList) => {
           </div>
         )}
 
-        {currentCutsForCarcass.length > 0 && (
+        {currentCuts.length > 0 && (
           <div className="mt-6 p-4 border border-gray-200 rounded-lg bg-white">
-            <h4 className="text-lg font-semibold text-gray-800 mb-3">Cortes Temporales para Canal {selectedCarcassCode}</h4>
+            <h4 className="text-lg font-semibold text-gray-800 mb-3">Cortes Temporales para Canales {selectedChannelCodes.join(', ')}</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {currentCutsForCarcass.map(cut => (
+              {currentCuts.map(cut => (
                 <div key={cut.id} className="border border-gray-200 rounded-lg p-3 flex justify-between items-center">
                   <div>
                     <p className="text-gray-700 font-medium">{cut.cutType}: <span className="font-normal">{cut.weight} kg</span></p>
@@ -509,7 +498,7 @@ const getMermaByMeatType = (invoiceId, cutsList) => {
 
             <div className="mt-4 p-3 bg-gray-100 rounded-lg">
               <h5 className="text-md font-semibold text-gray-800 mb-2">Resumen de Peso Total Temporal</h5>
-              <p className="text-gray-700">Total Despostado: {getTotalWeightSummary(currentCutsForCarcass)} kg</p>
+              <p className="text-gray-700">Total Despostado: {getTotalWeightSummary(currentCuts)} kg</p>
             </div>
 
             <button
@@ -584,7 +573,7 @@ const getMermaByMeatType = (invoiceId, cutsList) => {
                     {cutsList.map(cut => (
                       <div key={cut.id} className="border border-gray-200 rounded-lg p-3">
                         <p className="text-gray-700 font-medium">Corte: <span className="font-normal">{cut.cutType}</span></p>
-                        <p className="text-gray-700 font-medium">Canal Código: <span className="font-normal">{cut.carcassCode}</span></p>
+                        <p className="text-gray-700 font-medium">Canales: <span className="font-normal">{cut.channelCodes.join(', ')}</span></p>
                         <p className="text-gray-700 font-medium">Peso: <span className="font-normal">{cut.weight} kg</span></p>
                         <p className="text-gray-700 font-medium">Cantidad: <span className="font-normal">{cut.quantity} piezas</span></p>
                         <p className="text-gray-600 text-sm">Operario: {getOperatorName(cut.operatorId)}</p>
@@ -599,15 +588,9 @@ const getMermaByMeatType = (invoiceId, cutsList) => {
                       <p key={type} className="text-gray-700">{type}: {totalWeight.toFixed(2)} kg</p>
                     ))}
 
-                    <h5 className="text-md font-semibold text-gray-800 mt-4 mb-2">Total Kilos Despostado y Merma por Canal</h5>
-                    {getTotalWeightByCarcass(invoiceId, cutsList).map(([code, totalWeight]) => (
-                      <p key={code} className="text-gray-700">{code} (Despostado): {totalWeight.toFixed(2)} kg</p>
-                    ))}
-                     {invoiceId && getMermaByCarcass(invoiceId, cutsList).map(([code, mermaWeight]) => (
-                      <p key={`${code}-merma`} className="text-gray-700">
-                        {code} (Merma): <span className={`${mermaWeight >= 0 ? 'text-green-600' : 'text-red-600'}`}>{mermaWeight.toFixed(2)} kg</span>
-                      </p>                      
-                    ))}
+                     <h5 className="text-md font-semibold text-gray-800 mt-4 mb-2">Resumen de Peso Total y Merma</h5>
+                    <p className="text-gray-700">Total Despostado: {getTotalWeightByInvoice(invoiceId, cutsList).toFixed(2)} kg</p>
+                    <p className="text-gray-700">Merma: <span className={`${getMermaByInvoice(invoiceId, cutsList) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{getMermaByInvoice(invoiceId, cutsList).toFixed(2)} kg</span></p>
                     <h5 className="text-md font-semibold text-gray-800 mt-4 mb-2">Merma Total por Tipo de Carne</h5>
                     {invoiceId && getMermaByMeatType(invoiceId, cutsList).map(([type, mermaWeight]) => (
                       <p key={`${type}-total-merma`} className="text-gray-700">

@@ -1,6 +1,7 @@
 // models/desposteModel.js
 const db = require('../config/db');
 const { deleteInventarioByOrigen } = require('./inventarioModel');
+const { deleteByDesposte } = require('./desposteCanalModel');
 
 async function getAllDespostes() {
   const [rows] = await db.query(
@@ -31,16 +32,16 @@ async function createDesposte({ id_factura, id_usuario, fecha }) {
 
 // Elimina un desposte y sus registros de inventario asociados
 async function deleteDesposte(id) {
-  // Obtener la factura relacionada para conocer el origen
- const [detRows] = await db.query(
-    'SELECT DISTINCT id_canal FROM detalles_corte WHERE id_desposte = ?',
+  const [detRows] = await db.query(
+    'SELECT id_detalle FROM detalles_corte WHERE id_desposte = ?',
     [id]
   );
   for (const row of detRows) {
-    await deleteInventarioByOrigen(`canal:${row.id_canal}`);
+    await deleteInventarioByOrigen(`desposte:${id}`);
   }
   
   await db.query('DELETE FROM detalles_corte WHERE id_desposte = ?', [id]);
+  await deleteByDesposte(id);
   await db.query('DELETE FROM despostes WHERE id_desposte = ?', [id]);
   return { id };
 }
