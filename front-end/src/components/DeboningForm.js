@@ -350,6 +350,13 @@ const getMermaByMeatType = (invoiceId, cutsList) => {
     setCurrentPage(page);
   };
 
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
+  };
+
  const handleEditDesposte = (des) => {
     setEditingDesposteId(des.id_desposte);
     setEditedDesposte({
