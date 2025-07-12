@@ -150,16 +150,13 @@ DROP TABLE IF EXISTS `detalles_corte`;
 CREATE TABLE `detalles_corte` (
   `id_detalle` int(11) NOT NULL AUTO_INCREMENT,
   `id_desposte` int(11) NOT NULL,
-  `id_canal` int(11) NOT NULL,
   `id_tipo_corte` int(11) NOT NULL,
   `peso` decimal(10,2) NOT NULL,
   `cantidad` int(11) DEFAULT 1,
   PRIMARY KEY (`id_detalle`),
   KEY `id_desposte` (`id_desposte`),
-  KEY `id_canal` (`id_canal`),
   KEY `id_tipo_corte` (`id_tipo_corte`),
   CONSTRAINT `detalles_corte_ibfk_1` FOREIGN KEY (`id_desposte`) REFERENCES `despostes` (`id_desposte`),
-  CONSTRAINT `detalles_corte_ibfk_2` FOREIGN KEY (`id_canal`) REFERENCES `canales` (`id_canal`),
   CONSTRAINT `detalles_corte_ibfk_3` FOREIGN KEY (`id_tipo_corte`) REFERENCES `tipos_corte` (`id_tipo_corte`)
 ) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -171,7 +168,7 @@ CREATE TABLE `detalles_corte` (
 LOCK TABLES `detalles_corte` WRITE;
 /*!40000 ALTER TABLE `detalles_corte` DISABLE KEYS */;
 INSERT INTO `detalles_corte` VALUES
-(33,28,37,73,100.00,10);
+(33,28,73,100.00,10);
 /*!40000 ALTER TABLE `detalles_corte` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -489,4 +486,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
 
--- Dump completed on 2025-07-11 20:26:48
+-- Dump completed on 2025-07-11 20:36:33
