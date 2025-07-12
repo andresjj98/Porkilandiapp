@@ -37,7 +37,7 @@ CREATE TABLE `canales` (
   CONSTRAINT `canales_ibfk_1` FOREIGN KEY (`id_factura`) REFERENCES `facturas` (`id_factura`),
   CONSTRAINT `fk_canales_tipo_carne` FOREIGN KEY (`id_tipo_carne`) REFERENCES `tipo_carne` (`id_tipo_carne`) ON UPDATE CASCADE,
   CONSTRAINT `fk_canales_tipo_corte` FOREIGN KEY (`id_tipo_corte`) REFERENCES `tipos_corte` (`id_tipo_corte`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -47,7 +47,9 @@ CREATE TABLE `canales` (
 LOCK TABLES `canales` WRITE;
 /*!40000 ALTER TABLE `canales` DISABLE KEYS */;
 INSERT INTO `canales` VALUES
-(37,'ctest09',35,101.00,2,NULL);
+(39,'xpt01',36,100.00,1,NULL),
+(40,'xpt02',36,95.00,1,NULL),
+(41,'xpt03',36,85.00,1,NULL);
 /*!40000 ALTER TABLE `canales` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -67,7 +69,7 @@ CREATE TABLE `desposte_canales` (
   KEY `id_canal` (`id_canal`),
   CONSTRAINT `desposte_canales_ibfk_1` FOREIGN KEY (`id_desposte`) REFERENCES `despostes` (`id_desposte`) ON DELETE CASCADE,
   CONSTRAINT `desposte_canales_ibfk_2` FOREIGN KEY (`id_canal`) REFERENCES `canales` (`id_canal`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -96,7 +98,7 @@ CREATE TABLE `despostes` (
   KEY `id_usuario` (`id_usuario`),
   CONSTRAINT `despostes_ibfk_1` FOREIGN KEY (`id_factura`) REFERENCES `facturas` (`id_factura`),
   CONSTRAINT `despostes_ibfk_2` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`)
-) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -105,8 +107,6 @@ CREATE TABLE `despostes` (
 
 LOCK TABLES `despostes` WRITE;
 /*!40000 ALTER TABLE `despostes` DISABLE KEYS */;
-INSERT INTO `despostes` VALUES
-(28,35,9,'2025-07-08');
 /*!40000 ALTER TABLE `despostes` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -128,7 +128,7 @@ CREATE TABLE `detalle_orden` (
   KEY `id_producto` (`id_producto`),
   CONSTRAINT `detalle_orden_ibfk_1` FOREIGN KEY (`id_orden`) REFERENCES `ordenes` (`id_orden`),
   CONSTRAINT `detalle_orden_ibfk_2` FOREIGN KEY (`id_producto`) REFERENCES `productos` (`id_producto`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -137,6 +137,8 @@ CREATE TABLE `detalle_orden` (
 
 LOCK TABLES `detalle_orden` WRITE;
 /*!40000 ALTER TABLE `detalle_orden` DISABLE KEYS */;
+INSERT INTO `detalle_orden` VALUES
+(12,13,14,2,20.00);
 /*!40000 ALTER TABLE `detalle_orden` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -158,7 +160,7 @@ CREATE TABLE `detalles_corte` (
   KEY `id_tipo_corte` (`id_tipo_corte`),
   CONSTRAINT `detalles_corte_ibfk_1` FOREIGN KEY (`id_desposte`) REFERENCES `despostes` (`id_desposte`),
   CONSTRAINT `detalles_corte_ibfk_3` FOREIGN KEY (`id_tipo_corte`) REFERENCES `tipos_corte` (`id_tipo_corte`)
-) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=44 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -167,8 +169,6 @@ CREATE TABLE `detalles_corte` (
 
 LOCK TABLES `detalles_corte` WRITE;
 /*!40000 ALTER TABLE `detalles_corte` DISABLE KEYS */;
-INSERT INTO `detalles_corte` VALUES
-(33,28,73,100.00,10);
 /*!40000 ALTER TABLE `detalles_corte` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -191,7 +191,7 @@ CREATE TABLE `facturas` (
   KEY `id_usuario` (`id_usuario`),
   CONSTRAINT `facturas_ibfk_1` FOREIGN KEY (`id_proveedor`) REFERENCES `proveedores` (`id_proveedor`),
   CONSTRAINT `facturas_ibfk_2` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`)
-) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -201,7 +201,7 @@ CREATE TABLE `facturas` (
 LOCK TABLES `facturas` WRITE;
 /*!40000 ALTER TABLE `facturas` DISABLE KEYS */;
 INSERT INTO `facturas` VALUES
-(35,'test09','2025-07-08','2025-07-08',1,2);
+(36,'ptest01','2025-07-11','2025-07-10',1,2);
 /*!40000 ALTER TABLE `facturas` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -222,7 +222,7 @@ CREATE TABLE `inventario` (
   PRIMARY KEY (`id_inventario`),
   KEY `id_producto` (`id_producto`),
   CONSTRAINT `inventario_ibfk_1` FOREIGN KEY (`id_producto`) REFERENCES `productos` (`id_producto`)
-) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -232,7 +232,8 @@ CREATE TABLE `inventario` (
 LOCK TABLES `inventario` WRITE;
 /*!40000 ALTER TABLE `inventario` DISABLE KEYS */;
 INSERT INTO `inventario` VALUES
-(17,8,10,100.00,'disponible','canal:37');
+(28,14,2,19.50,'despachado','orden:13'),
+(29,14,0,0.00,'despachado','orden:13');
 /*!40000 ALTER TABLE `inventario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -255,7 +256,7 @@ CREATE TABLE `ordenes` (
   KEY `fk_orden_pos` (`id_pos`),
   CONSTRAINT `fk_orden_pos` FOREIGN KEY (`id_pos`) REFERENCES `puntos_venta` (`id_punto_venta`),
   CONSTRAINT `ordenes_ibfk_1` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -264,6 +265,8 @@ CREATE TABLE `ordenes` (
 
 LOCK TABLES `ordenes` WRITE;
 /*!40000 ALTER TABLE `ordenes` DISABLE KEYS */;
+INSERT INTO `ordenes` VALUES
+(13,'2025-07-11',9,1,'entregada','venta01');
 /*!40000 ALTER TABLE `ordenes` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -283,7 +286,7 @@ CREATE TABLE `productos` (
   KEY `fk_producto_tipo_corte` (`id_tipo_corte`),
   CONSTRAINT `fk_producto_tipo_carne` FOREIGN KEY (`id_tipo_carne`) REFERENCES `tipo_carne` (`id_tipo_carne`) ON UPDATE CASCADE,
   CONSTRAINT `fk_producto_tipo_corte` FOREIGN KEY (`id_tipo_corte`) REFERENCES `tipos_corte` (`id_tipo_corte`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -294,7 +297,14 @@ LOCK TABLES `productos` WRITE;
 /*!40000 ALTER TABLE `productos` DISABLE KEYS */;
 INSERT INTO `productos` VALUES
 (8,2,73),
-(9,1,74);
+(9,1,74),
+(13,2,78),
+(14,2,79),
+(15,2,80),
+(16,1,81),
+(17,1,82),
+(18,1,83),
+(19,1,84);
 /*!40000 ALTER TABLE `productos` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -418,7 +428,7 @@ CREATE TABLE `tipos_corte` (
   `id_tipo_corte` int(11) NOT NULL AUTO_INCREMENT,
   `nombre_corte` varchar(100) NOT NULL,
   PRIMARY KEY (`id_tipo_corte`)
-) ENGINE=InnoDB AUTO_INCREMENT=78 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=85 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -429,7 +439,14 @@ LOCK TABLES `tipos_corte` WRITE;
 /*!40000 ALTER TABLE `tipos_corte` DISABLE KEYS */;
 INSERT INTO `tipos_corte` VALUES
 (73,'LOMO CAÑON'),
-(74,'AGUJA CONDIMENTADA');
+(74,'AGUJA CONDIMENTADA'),
+(78,'SOOLOMITOS'),
+(79,'PIERNA DE CERDO'),
+(80,'BRAZO DE CERDO'),
+(81,'AGUJA NATURAL'),
+(82,'AGUJAS NEGRAS'),
+(83,'BOLA CONDIMENTADA'),
+(84,'BOLAS BLANCAS');
 /*!40000 ALTER TABLE `tipos_corte` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -486,4 +503,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
 
--- Dump completed on 2025-07-11 20:36:33
+-- Dump completed on 2025-07-12 10:17:26

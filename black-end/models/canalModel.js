@@ -66,19 +66,14 @@ async function deleteCanal(id) {
     // Inventario generado desde este canal
   await deleteInventarioByOrigen(`canal:${id}`);
 
-  // Buscar despostes que incluyan este canal
+  // Buscar despostes vinculados a este canal
   const [desRows] = await db.query(
-    'SELECT DISTINCT id_desposte FROM detalles_corte WHERE id_canal = ?',
+    'SELECT id_desposte FROM desposte_canales WHERE id_canal = ?',
     [id]
   );
+  // Eliminar cada desposte encontrado (también borra detalles e inventario)
   for (const d of desRows) {
-    // Eliminar solo los detalles de este canal
-    await db.query('DELETE FROM detalles_corte WHERE id_desposte = ? AND id_canal = ?', [d.id_desposte, id]);
-    // Si el desposte quedó sin detalles, eliminarlo
-    const [cnt] = await db.query('SELECT COUNT(*) AS c FROM detalles_corte WHERE id_desposte = ?', [d.id_desposte]);
-    if (cnt[0].c === 0) {
-      await db.query('DELETE FROM despostes WHERE id_desposte = ?', [d.id_desposte]);
-    }
+    await deleteDesposte(d.id_desposte);
   }
 
     // Finalmente borra el canal
