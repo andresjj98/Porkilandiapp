@@ -30,6 +30,22 @@ async function createDesposte({ id_factura, id_usuario, fecha }) {
   return { id: result.insertId };
 }
 
+// ────────────────────────────────────────────────────────────
+// Editar desposte
+// ────────────────────────────────────────────────────────────
+async function updateDesposte(id, { id_factura, id_usuario, fecha }) {
+  await db.query(
+    `UPDATE despostes
+       SET id_factura = ?,
+           id_usuario = ?,
+           fecha      = ?
+     WHERE id_desposte = ?`,
+    [id_factura, id_usuario, fecha, id]
+  );
+  return { id };
+}
+
+
 // Elimina un desposte y sus registros de inventario asociados
 async function deleteDesposte(id) {
   const [detRows] = await db.query(
@@ -45,4 +61,10 @@ async function deleteDesposte(id) {
   await db.query('DELETE FROM despostes WHERE id_desposte = ?', [id]);
   return { id };
 }
-module.exports = { getAllDespostes, getDesposteById, createDesposte, deleteDesposte };
+module.exports = {
+  getAllDespostes,
+  getDesposteById,
+  createDesposte,
+  updateDesposte,
+  deleteDesposte
+};

@@ -7,6 +7,7 @@ const {
   getAllDespostes,
   getDesposteById,
   createDesposte,
+  updateDesposte,
   deleteDesposte
 } = require('../models/desposteModel');
 const { createDetalleCorte } = require('../models/detalleCorteModel');
@@ -117,11 +118,41 @@ router.post(
     }
   }
 );
+// PUT /api/despostes/:id
+router.put(
+  '/:id',
+  verifyToken,
+  authorizeRoles('admin'),
+  [
+    param('id').isInt().withMessage('El ID de desposte debe ser un número entero'),
+    body('id_factura')
+      .notEmpty().withMessage('El ID de factura es requerido')
+      .isInt().withMessage('El ID de factura debe ser un número entero'),
+    body('id_usuario')
+      .notEmpty().withMessage('El ID de usuario es requerido')
+      .isInt().withMessage('El ID de usuario debe ser un número entero'),
+    body('fecha')
+      .notEmpty().withMessage('La fecha es requerida')
+      .isISO8601().withMessage('La fecha debe tener formato ISO 8601 (YYYY-MM-DD)')
+  ],
+  validateRequest,
+  async (req, res) => {
+    try {
+      const { id_factura, id_usuario, fecha } = req.body;
+      await updateDesposte(req.params.id, { id_factura, id_usuario, fecha });
+      const updated = await getDesposteById(req.params.id);
+      res.json(updated);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error al actualizar desposte' });
+    }
+  }
+);
 // DELETE /api/despostes/:id
 router.delete(
   '/:id',
   verifyToken,
-  authorizeRoles('admin', 'operario'),
+   authorizeRoles('admin'),
   param('id').isInt().withMessage('El ID de desposte debe ser un número entero'),
   validateRequest,
   async (req, res) => {
