@@ -65,7 +65,7 @@ app.use(
 app.use(
   '/api/proveedores',
   verifyToken,
-  authorizeRoles('admin'),
+  authorizeRoles('admin', 'operario'),
   proveedoresRouter
 );
 app.use(
