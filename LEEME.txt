@@ -1,0 +1,82 @@
+ INSTRUCCIONES DE INSTALACIÓN DEL PROYECTO
+✅ 1️⃣ Instalar XAMPP
+Descarga e instala XAMPP desde su sitio oficial:
+👉 https://www.apachefriends.org/es/index.html
+
+Durante la instalación, asegúrate de seleccionar el componente de MySQL.
+
+Abre el Panel de Control de XAMPP.
+
+Haz click en el botón Start en MySQL para arrancar el servicio de base de datos.
+
+✅ ¡MySQL está corriendo!
+
+✅ 2️⃣ Abrir phpMyAdmin
+En el panel de XAMPP, presiona Admin en la fila de MySQL.
+
+Esto abrirá phpMyAdmin en tu navegador.
+
+✅ Es la interfaz web para gestionar bases de datos MySQL.
+
+✅ 3️⃣ Crear la base de datos vacía
+En phpMyAdmin:
+
+Haz click en Base de datos en el menú superior.
+
+Escribe el nombre de la base de datos: trazabilidad_carnes
+
+Selecciona utf8_general_ci (opcional, pero recomendado).
+
+Haz click en Crear.
+
+✅ Ahora tienes la base de datos vacía lista para importar.
+
+✅ 4️⃣ Importar la base de datos desde el archivo .sql
+Ve a la base de datos trazabilidad_carnes en el menú de la izquierda.
+
+Haz click en la pestaña Importar.
+
+Presiona Elegir archivo y busca en tu equipo la ruta de tu proyecto:
+
+pgsql
+Copiar
+Editar
+/database/trazabilidad_carnes.sql
+Deja las opciones por defecto y presiona Continuar.
+
+✅ phpMyAdmin procesará el archivo. Verás un mensaje verde de éxito si todo sale bien.
+✅ ¡Tu base de datos ya está con todas las tablas y estructura!
+
+✅ 5️⃣ Verificar la base de datos
+En el menú izquierdo en phpMyAdmin, haz click en trazabilidad_carnes.
+
+Asegúrate de que aparezcan las tablas (productos, canales, facturas, etc.)
+
+✅ Esto confirma que la importación se hizo correctamente.
+
+✅ 6️⃣ Instalar Node.js
+Descarga e instala Node.js desde:
+👉 https://nodejs.org
+
+Para comprobar si quedó bien instalado:
+
+Abre la terminal (CMD o PowerShell).
+
+Escribe:
+
+nginx
+Copiar
+Editar
+node -v
+npm -v
+Debe mostrarte la versión instalada.
+
+✅ Node.js y npm están listos.
+
+---------------------------------------
+
+Luego ve a la carpeta del proyecto y busca el archivo iniciar_app.bat
+Dale doble clic, si todo funciona bien entonces la app debería de correr con normalidad
+
+Usuario: admin
+Contraseña: admin123

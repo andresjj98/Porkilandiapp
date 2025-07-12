@@ -63,7 +63,7 @@ async function createDetalleCorte({ id_desposte, id_canal, id_tipo_corte, peso, 
           cantidad,
           peso_total: peso,
           estado: 'disponible',
-          origen: factura ? factura.number : String(canal.id_factura)
+          origen: `canal:${canal.id_canal}`
         });
       }
     }
