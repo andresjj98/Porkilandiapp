@@ -35,7 +35,7 @@ function App() {
 
       <main className="flex-grow container mx-auto py-6">
         {currentPage === 'invoices'   && <InvoiceList />}
-        {currentPage === 'deboning'   && <DeboningForm />}
+        {currentPage === 'deboning'   && <DeboningForm userRole={user.role} />}
         {currentPage === 'inventory'  && <InventoryList />}
         {currentPage === 'orders'     && <OrderForm />}
         {currentPage === 'management' && <ManagementModule />}

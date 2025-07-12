@@ -5,7 +5,7 @@ import { filterByDateRange } from '../utils/dateFilters';
 
 
 
-const DeboningForm = () => {
+const DeboningForm = ({ userRole }) => {
   const [invoices, setInvoices] = useState([]); // Inicializar vacío
   const [cuts, setCuts] = useState([]); // Inicializar vacío
   const [despostes, setDespostes] = useState([]);
@@ -26,6 +26,9 @@ const DeboningForm = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [groupedCuts, setGroupedCuts] = useState({});
+
+  const [editingDesposteId, setEditingDesposteId] = useState(null);
+  const [editedDesposte, setEditedDesposte] = useState({ invoiceId: '', operatorId: '', date: '' });
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
@@ -347,11 +350,58 @@ const getMermaByMeatType = (invoiceId, cutsList) => {
     setCurrentPage(page);
   };
 
-  const handleClearFilters = () => {
-    setSearchTerm('');
-    setStartDate('');
-    setEndDate('');
-    setCurrentPage(1);
+ const handleEditDesposte = (des) => {
+    setEditingDesposteId(des.id_desposte);
+    setEditedDesposte({
+      invoiceId: des.id_factura,
+      operatorId: des.id_usuario,
+      date: des.fecha
+    });
+  };
+
+  const handleEditedDesposteChange = (e) => {
+    const { name, value } = e.target;
+    setEditedDesposte(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCancelEditDesposte = () => {
+    setEditingDesposteId(null);
+    setEditedDesposte({ invoiceId: '', operatorId: '', date: '' });
+  };
+
+  const handleSaveEditedDesposte = async () => {
+    if (!editedDesposte.invoiceId || !editedDesposte.operatorId || !editedDesposte.date) {
+      alert('Por favor, completa todos los campos.');
+      return;
+    }
+    try {
+      await api.put(`/despostes/${editingDesposteId}`, {
+        id_factura: editedDesposte.invoiceId,
+        id_usuario: editedDesposte.operatorId,
+        fecha: editedDesposte.date
+      });
+      await loadData();
+      await refreshInventory();
+      handleCancelEditDesposte();
+      alert('Desposte actualizado con éxito!');
+    } catch (error) {
+      console.error('Error updating deboning:', error);
+      alert('Error al actualizar el desposte. Intenta de nuevo.');
+    }
+  };
+
+  const handleDeleteDesposte = async (id) => {
+    if (window.confirm('¿Estás seguro de que quieres eliminar este desposte?')) {
+      try {
+        await api.delete(`/despostes/${id}`);
+        await loadData();
+        await refreshInventory();
+        alert('Desposte eliminado con éxito!');
+      } catch (error) {
+        console.error('Error deleting deboning:', error);
+        alert('Error al eliminar el desposte. Intenta de nuevo.');
+      }
+    }
   };
 
 
@@ -573,18 +623,72 @@ const getMermaByMeatType = (invoiceId, cutsList) => {
                 <div key={invoiceNumber} className="bg-white p-6 rounded-lg shadow-md">
                   <h3 className="text-xl font-semibold text-gray-800 mb-4">Factura: {invoiceNumber}</h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {cutsList.map(cut => (
-                      <div key={cut.id} className="border border-gray-200 rounded-lg p-3">
-                        <p className="text-gray-700 font-medium">Corte: <span className="font-normal">{cut.cutType}</span></p>
-                        <p className="text-gray-700 font-medium">Canales: <span className="font-normal">{cut.channelCodes.join(', ')}</span></p>
-                        <p className="text-gray-700 font-medium">Peso: <span className="font-normal">{cut.weight} kg</span></p>
-                        <p className="text-gray-700 font-medium">Cantidad: <span className="font-normal">{cut.quantity} piezas</span></p>
-                        <p className="text-gray-600 text-sm">Operario: {getOperatorName(cut.operatorId)}</p>
-                        <p className="text-gray-600 text-sm">Fecha: {cut.processingDate}</p>
+                  {Object.entries(cutsList.reduce((acc, cut) => {
+                    if (!acc[cut.desposteId]) acc[cut.desposteId] = [];
+                    acc[cut.desposteId].push(cut);
+                    return acc;
+                  }, {})).map(([desId, desCuts]) => {
+                    const des = despostes.find(d => d.id_desposte === Number(desId)) || {};
+                    return (
+                      <div key={desId} className="mb-6 border border-gray-200 rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <p className="text-gray-700 font-medium">Desposte ID: {desId}</p>
+                            <p className="text-gray-600 text-sm">Operario: {getOperatorName(des.id_usuario)}</p>
+                            <p className="text-gray-600 text-sm">Fecha: {des.fecha}</p>
+                          </div>
+                          {userRole === 'admin' && (
+                            <div className="flex space-x-2">
+                              <button onClick={() => handleEditDesposte(des)} className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">Editar</button>
+                              <button onClick={() => handleDeleteDesposte(desId)} className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm">Eliminar</button>
+                            </div>
+                          )}
+                        </div>
+
+                        {editingDesposteId === Number(desId) ? (
+                          <div className="space-y-3 mb-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Factura</label>
+                              <select name="invoiceId" value={editedDesposte.invoiceId} onChange={handleEditedDesposteChange} className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition">
+                                <option value="">Selecciona una Factura</option>
+                                {invoices.map(inv => (
+                                  <option key={inv.id} value={inv.id}>{inv.number}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Operario</label>
+                              <select name="operatorId" value={editedDesposte.operatorId} onChange={handleEditedDesposteChange} className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition">
+                                <option value="">Selecciona un Operario</option>
+                                {operarioUsers.map(u => (
+                                  <option key={u.id} value={u.id}>{u.fullName}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Fecha</label>
+                              <input type="date" name="date" value={editedDesposte.date} onChange={handleEditedDesposteChange} className="w-full mt-1 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-black transition" />
+                            </div>
+                            <div className="flex justify-end space-x-2">
+                              <button onClick={handleCancelEditDesposte} className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">Cancelar</button>
+                              <button onClick={handleSaveEditedDesposte} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">Guardar</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                            {desCuts.map(cut => (
+                              <div key={cut.id} className="border border-gray-200 rounded-lg p-3">
+                                <p className="text-gray-700 font-medium">Corte: <span className="font-normal">{cut.cutType}</span></p>
+                                <p className="text-gray-700 font-medium">Canales: <span className="font-normal">{cut.channelCodes.join(', ')}</span></p>
+                                <p className="text-gray-700 font-medium">Peso: <span className="font-normal">{cut.weight} kg</span></p>
+                                <p className="text-gray-700 font-medium">Cantidad: <span className="font-normal">{cut.quantity} piezas</span></p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
 
                   <div className="mt-4 p-4 bg-gray-100 rounded-lg">
                     <h5 className="text-md font-semibold text-gray-800 mb-2">Resumen de Peso por Tipo de Corte en esta Factura</h5>
@@ -592,7 +696,7 @@ const getMermaByMeatType = (invoiceId, cutsList) => {
                       <p key={type} className="text-gray-700">{type}: {totalWeight.toFixed(2)} kg</p>
                     ))}
 
-                     <h5 className="text-md font-semibold text-gray-800 mt-4 mb-2">Resumen de Peso Total y Merma</h5>
+                    <h5 className="text-md font-semibold text-gray-800 mt-4 mb-2">Resumen de Peso Total y Merma</h5>
                     <p className="text-gray-700">Total Despostado: {getTotalWeightByInvoice(invoiceId, cutsList).toFixed(2)} kg</p>
                     <p className="text-gray-700">Merma: <span className={`${getMermaByInvoice(invoiceId, cutsList) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{getMermaByInvoice(invoiceId, cutsList).toFixed(2)} kg</span></p>
                     <h5 className="text-md font-semibold text-gray-800 mt-4 mb-2">Merma Total por Tipo de Carne</h5>
