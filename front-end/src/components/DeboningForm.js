@@ -200,9 +200,13 @@ const loadData = async () => {
       alert('No hay cortes para registrar.');
       return;
     }
-    if (!selectedInvoiceId || !selectedOperatorId || selectedChannelCodes.length === 0) {
-       alert('Por favor, selecciona la factura, el operario y al menos un canal.');
-       return;
+   if (
+      selectedInvoiceId === '' ||
+      selectedOperatorId === '' ||
+      selectedChannelCodes.length === 0
+    ) {
+      alert('Por favor, selecciona la factura, el operario y al menos un canal.');
+      return;
     }
 
     const invoice = invoices.find(inv => inv.id === selectedInvoiceId);
